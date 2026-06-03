@@ -1,0 +1,416 @@
+{
+  "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+  "@graph": [
+    {
+      "type": "CreationInfo",
+      "@id": "_:creationInfo",
+      "specVersion": "3.0.1",
+      "created": "2026-06-03T21:23:22Z",
+      "createdBy": [
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-FrankGoenninger",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-GoenningerBT"
+      ],
+      "createdUsing": [
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Tool-ClaudeCode"
+      ]
+    },
+
+    {
+      "type": "Person",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-FrankGoenninger",
+      "creationInfo": "_:creationInfo",
+      "name": "Frank Gönninger",
+      "externalIdentifier": [
+        { "type": "ExternalIdentifier", "externalIdentifierType": "email", "identifier": "frank.goenninger@goenninger.net" }
+      ]
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-GoenningerBT",
+      "creationInfo": "_:creationInfo",
+      "name": "Goenninger B&T"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-FSF",
+      "creationInfo": "_:creationInfo",
+      "name": "Free Software Foundation, Inc."
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-PSF",
+      "creationInfo": "_:creationInfo",
+      "name": "Python Software Foundation"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-PyYAML",
+      "creationInfo": "_:creationInfo",
+      "name": "The PyYAML Project"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-curl",
+      "creationInfo": "_:creationInfo",
+      "name": "The curl project"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-GitProject",
+      "creationInfo": "_:creationInfo",
+      "name": "The Git Project"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-GitHub",
+      "creationInfo": "_:creationInfo",
+      "name": "GitHub, Inc."
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-Google",
+      "creationInfo": "_:creationInfo",
+      "name": "Google LLC"
+    },
+    {
+      "type": "Organization",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-YoctoProject",
+      "creationInfo": "_:creationInfo",
+      "name": "The Yocto Project (The Linux Foundation)"
+    },
+    {
+      "type": "Tool",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Tool-ClaudeCode",
+      "creationInfo": "_:creationInfo",
+      "name": "Claude Code (assisted manual authoring)"
+    },
+
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-MIT",
+      "creationInfo": "_:creationInfo",
+      "name": "MIT",
+      "simplelicensing_licenseExpression": "MIT"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-Apache-2.0",
+      "creationInfo": "_:creationInfo",
+      "name": "Apache-2.0",
+      "simplelicensing_licenseExpression": "Apache-2.0"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-GPL-3.0-or-later",
+      "creationInfo": "_:creationInfo",
+      "name": "GPL-3.0-or-later",
+      "simplelicensing_licenseExpression": "GPL-3.0-or-later"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-Python-2.0",
+      "creationInfo": "_:creationInfo",
+      "name": "Python-2.0",
+      "simplelicensing_licenseExpression": "Python-2.0"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-GPL-2.0-only",
+      "creationInfo": "_:creationInfo",
+      "name": "GPL-2.0-only",
+      "simplelicensing_licenseExpression": "GPL-2.0-only"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-curl",
+      "creationInfo": "_:creationInfo",
+      "name": "curl",
+      "simplelicensing_licenseExpression": "curl"
+    },
+    {
+      "type": "simplelicensing_LicenseExpression",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-CC0-1.0",
+      "creationInfo": "_:creationInfo",
+      "name": "CC0-1.0",
+      "simplelicensing_licenseExpression": "CC0-1.0"
+    },
+
+    {
+      "type": "SpdxDocument",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-DOCUMENT",
+      "creationInfo": "_:creationInfo",
+      "name": "adsp-sc598-custom SBOM",
+      "profileConformance": [ "core", "software", "simpleLicensing" ],
+      "dataLicense": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-CC0-1.0",
+      "rootElement": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-SBOM" ],
+      "element": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-SBOM" ],
+      "comment": "Scope: the ADSP-SC598 Yocto build-harness repository (first-party Makefile, bin/ scripts, overlays, config, and the bundled hello-world example app) plus the external build/runtime tools it depends on. This SBOM does NOT describe the firmware/SD-card IMAGE the harness produces; that image is built from the Analog Devices Yocto BSP (poky + meta-adi, pinned via manifest release-5.0.1.xml) and carries its own, far larger SBOM that is generatable with Yocto's SPDX support (the create-spdx/create-spdx-3.0 classes). Conforms to SPDX 3.0.1; carries the NTIA SBOM minimum elements (supplier, component name, version, unique identifiers, dependency relationships, author, timestamp)."
+    },
+
+    {
+      "type": "software_Sbom",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-SBOM",
+      "creationInfo": "_:creationInfo",
+      "name": "adsp-sc598-custom",
+      "software_sbomType": [ "source" ],
+      "rootElement": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-adsp-sc598-custom" ],
+      "element": [
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-adsp-sc598-custom",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-hello-world",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-bash",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-gnu-make",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-python3",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-python3-pyyaml",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-curl",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-git",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-github-cli",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-google-repo",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-poky"
+      ]
+    },
+
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-adsp-sc598-custom",
+      "creationInfo": "_:creationInfo",
+      "name": "adsp-sc598-custom",
+      "software_packageVersion": "0.1.0",
+      "software_downloadLocation": "git+https://github.com/goenninger-b-t/adsp-sc598-custom.git@2c9a1e41db3728a74ec957f42c369517b9f28c98",
+      "software_homePage": "https://github.com/goenninger-b-t/adsp-sc598-custom",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-GoenningerBT",
+      "originatedBy": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-FrankGoenninger" ],
+      "externalIdentifier": [
+        { "type": "ExternalIdentifier", "externalIdentifierType": "packageUrl", "identifier": "pkg:github/goenninger-b-t/adsp-sc598-custom@2c9a1e41db3728a74ec957f42c369517b9f28c98" },
+        { "type": "ExternalIdentifier", "externalIdentifierType": "gitoid", "identifier": "gitoid:commit:sha1:2c9a1e41db3728a74ec957f42c369517b9f28c98" }
+      ],
+      "comment": "The build harness itself: Makefile, config.mk, bin/ scripts, overlays/, and the example app under src/apps/. Version 0.1.0 is the initial development version corresponding to git commit 2c9a1e4 (unreleased)."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-hello-world",
+      "creationInfo": "_:creationInfo",
+      "name": "hello-world",
+      "software_packageVersion": "0.1.0",
+      "software_downloadLocation": "git+https://github.com/goenninger-b-t/adsp-sc598-custom.git@2c9a1e41db3728a74ec957f42c369517b9f28c98#src/apps/hello-world",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-GoenningerBT",
+      "originatedBy": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-FrankGoenninger" ],
+      "comment": "Bundled example local-source application (C, built with make) demonstrating the src/apps/ custom-app integration."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-bash",
+      "creationInfo": "_:creationInfo",
+      "name": "bash",
+      "software_packageVersion": "5.2.21",
+      "software_downloadLocation": "https://ftp.gnu.org/gnu/bash/",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-FSF",
+      "comment": "Build/runtime dependency (interpreter for the bin/*.sh scripts). External; not redistributed by this project. Version is the build host's installed version."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-gnu-make",
+      "creationInfo": "_:creationInfo",
+      "name": "make",
+      "software_packageVersion": "4.3",
+      "software_downloadLocation": "https://ftp.gnu.org/gnu/make/",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-FSF",
+      "comment": "Build/runtime dependency (drives the top-level Makefile). External; not redistributed."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-python3",
+      "creationInfo": "_:creationInfo",
+      "name": "python3",
+      "software_packageVersion": "3.12.3",
+      "software_downloadLocation": "https://www.python.org/downloads/",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-PSF",
+      "comment": "Build/runtime dependency (runs bin/gen-apps.py). External; not redistributed."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-python3-pyyaml",
+      "creationInfo": "_:creationInfo",
+      "name": "PyYAML",
+      "software_packageVersion": "6.0.1",
+      "software_downloadLocation": "https://pypi.org/project/PyYAML/",
+      "software_primaryPurpose": "library",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-PyYAML",
+      "externalIdentifier": [
+        { "type": "ExternalIdentifier", "externalIdentifierType": "packageUrl", "identifier": "pkg:pypi/pyyaml@6.0.1" }
+      ],
+      "comment": "Build/runtime dependency (gen-apps.py parses app.yaml manifests). External; not redistributed."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-curl",
+      "creationInfo": "_:creationInfo",
+      "name": "curl",
+      "software_packageVersion": "8.5.0",
+      "software_downloadLocation": "https://curl.se/download.html",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-curl",
+      "comment": "Build/runtime dependency (bin/repo-init.sh downloads the repo launcher). External; not redistributed."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-git",
+      "creationInfo": "_:creationInfo",
+      "name": "git",
+      "software_packageVersion": "2.43.0",
+      "software_downloadLocation": "https://git-scm.com/downloads",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-GitProject",
+      "comment": "Build/runtime dependency (used by repo to sync the BSP, and for publishing). External; not redistributed."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-github-cli",
+      "creationInfo": "_:creationInfo",
+      "name": "GitHub CLI",
+      "software_packageVersion": "2.74.0",
+      "software_downloadLocation": "https://github.com/cli/cli/releases",
+      "software_homePage": "https://cli.github.com/",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-GitHub",
+      "externalIdentifier": [
+        { "type": "ExternalIdentifier", "externalIdentifierType": "packageUrl", "identifier": "pkg:github/cli/cli@v2.74.0" }
+      ],
+      "comment": "Optional build/runtime dependency (bin/publish-release.sh uploads GitHub releases). External; not redistributed."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-google-repo",
+      "creationInfo": "_:creationInfo",
+      "name": "repo (git-repo)",
+      "software_downloadLocation": "https://gerrit.googlesource.com/git-repo",
+      "software_homePage": "https://gerrit.googlesource.com/git-repo",
+      "software_primaryPurpose": "application",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-Google",
+      "comment": "Build/runtime dependency: Google's `repo` multi-repository tool, downloaded by `make init` from REPO_TOOL_URL and used to bootstrap the ADI BSP. Version is not pinned by this project (latest from Google Cloud Storage); not redistributed."
+    },
+    {
+      "type": "software_Package",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-poky",
+      "creationInfo": "_:creationInfo",
+      "name": "poky (Yocto Project / OpenEmbedded-Core)",
+      "software_packageVersion": "scarthgap-5.0 (ADI manifest release-5.0.1.xml)",
+      "software_downloadLocation": "https://git.yoctoproject.org/poky",
+      "software_homePage": "https://www.yoctoproject.org/",
+      "software_primaryPurpose": "framework",
+      "supplier": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Agent-YoctoProject",
+      "comment": "Build dependency: the Yocto/OpenEmbedded build system and metadata that actually compiles the image. Fetched (not vendored) via Google repo + the Analog Devices lnxdsp manifest, pinned to release-5.0.1.xml. License is a multi-license collection (NOASSERTION at this level); per-component licenses appear in the image's own Yocto-generated SBOM and license manifest."
+    },
+
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-contains-helloworld",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-adsp-sc598-custom",
+      "relationshipType": "contains",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-hello-world" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-dependsOn",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-adsp-sc598-custom",
+      "relationshipType": "dependsOn",
+      "to": [
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-bash",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-gnu-make",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-python3",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-python3-pyyaml",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-curl",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-git",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-github-cli",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-google-repo",
+        "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-poky"
+      ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-root",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-adsp-sc598-custom",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-MIT" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-helloworld",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-hello-world",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-MIT" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-bash",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-bash",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-GPL-3.0-or-later" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-make",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-gnu-make",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-GPL-3.0-or-later" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-python",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-python3",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-Python-2.0" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-pyyaml",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-python3-pyyaml",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-MIT" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-curl",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-curl",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-curl" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-git",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-git",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-GPL-2.0-only" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-gh",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-github-cli",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-MIT" ]
+    },
+    {
+      "type": "Relationship",
+      "spdxId": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Relationship-lic-repo",
+      "creationInfo": "_:creationInfo",
+      "from": "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-Package-google-repo",
+      "relationshipType": "hasDeclaredLicense",
+      "to": [ "https://github.com/goenninger-b-t/adsp-sc598-custom#SPDXRef-License-Apache-2.0" ]
+    }
+  ]
+}
