@@ -1,0 +1,17 @@
+# === BEGIN custom-apps overlay ===
+# Managed by overlays/local.conf.fragment.
+# Re-applied (with REPLACE semantics) by bin/configure-build.sh on every `make configure`.
+# Delete this block (begin/end markers inclusive) and re-run `make configure` to reset.
+
+# Enable SD-card boot path: u-boot defconfig, kernel SD/MMC support, falcon-mode wks layout.
+ADSP_SC598_SDCARD = "1"
+
+# NOTE: do NOT touch IMAGE_FSTYPES globally here. Other image recipes in the
+# ADI BSP (e.g. adsp-sc5xx-ramdisk) hard-set IMAGE_FSTYPES to cpio.xz/cpio.gz
+# and an unconditional `:append = " wic.gz"` here would force them to build a
+# wic that fails because they don't produce a .ext4 rootfs.
+# wic.gz comes for free from machine.conf for adi-sc5xx-custom.
+
+# Sane defaults for development images. Comment out for production.
+EXTRA_IMAGE_FEATURES:append = " debug-tweaks"
+# === END custom-apps overlay ===

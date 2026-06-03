@@ -1,0 +1,5 @@
+# === BEGIN custom-apps overlay ===
+# Managed by overlays/bblayers.conf.fragment.
+# Re-applied by bin/configure-build.sh on every `make configure`.
+BBLAYERS += "${BSPDIR}/layers/meta-custom-apps"
+# === END custom-apps overlay ===

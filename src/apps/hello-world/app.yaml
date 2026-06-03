@@ -1,0 +1,27 @@
+name: hello-world
+version: 0.1.0
+summary: "Demo C program showing the local-source + make app integration"
+license: MIT
+
+kind: local-source
+
+build:
+  system: make
+  configure_args: []
+
+install:
+  bindir: [hello-world]
+
+depends: []
+rdepends: []
+
+# Uncomment to also install a systemd unit + config file with this app:
+#
+# service:
+#   unit: service/hello-world.service
+#   enable: true
+#
+# config:
+#   - src: config/hello-world.conf
+#     dst: /etc/hello-world/hello-world.conf
+#     mode: '0644'

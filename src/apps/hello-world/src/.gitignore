@@ -1,0 +1,2 @@
+# Build output of the in-tree host Makefile (`make` -> ./hello-world).
+/hello-world

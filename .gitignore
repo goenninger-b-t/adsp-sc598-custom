@@ -1,0 +1,52 @@
+# .gitignore - ADSP-SC598 Yocto build harness
+# ============================================================================
+# Tracked = the build tooling you maintain by hand:
+#   Makefile, config.mk, bin/, overlays/, and the app sources under src/apps/.
+# Everything ignored below is fetched (`make init`/`make fetch`), generated
+# (`make apps`/`make image`/`make update-tooling`), or a build artifact - all
+# re-creatable, none belongs in git.
+# ============================================================================
+
+# --- Fetched / generated under src/ -----------------------------------------
+# src/apps/ is the ONLY hand-written tree under src/. Everything else there is
+# the ADI BSP and build state:
+#   src/.repo, src/bin            - `make init`  (repo metadata + launcher)
+#   src/sources, src/downloads,
+#   src/setup-environment         - `make fetch` (repo sync)
+#   src/layers                    - `make apps`  (generated meta-custom-apps)
+#   src/<BUILDDIR>, e.g. src/build - bitbake build tree
+# So: ignore everything under src/ except src/apps/.
+/src/*
+!/src/apps/
+
+# --- src/apps/ : hand-written app sources are TRACKED ------------------------
+# app.yaml, the src/ tree, LICENSE, config/ + service/ files, and prebuilt
+# binaries dropped in <app>/binary/ are inputs `make apps` consumes - tracked.
+# Cross-compilation runs in the bitbake WORKDIR, never under src/apps, so the
+# only artifacts that land here come from compiling an app in-tree:
+/src/apps/**/build/
+/src/apps/**/*.o
+/src/apps/**/*.a
+/src/apps/**/*.so
+/src/apps/**/*.elf
+/src/apps/**/*.bin
+/src/apps/**/*.map
+# Prebuilt tarballs in <app>/binary/ are not committed (they bloat history; a
+# kind=prebuilt-tarball app using a file:// URL then won't `make apps` from a
+# fresh clone - host it remotely with a sha256). Bare prebuilt binaries stay
+# tracked, since file:// builds need them present locally.
+/src/apps/*/binary/*.tar.gz
+# In-tree host-compiled binaries are extension-less and share the app's name,
+# so a glob can't catch them; each app ignores its own via a committed
+# src/apps/<name>/src/.gitignore that `make new-app` generates.
+
+# --- Generated output at the project root -----------------------------------
+# images/  : build outputs (wic.gz, sdcard.img) from `make image` / `make sdcard`
+# tooling/ : self-extracting tooling archive from `make update-tooling`
+/images/
+/tooling/
+
+# --- editor / OS noise ------------------------------------------------------
+*~
+*.sw?
+.DS_Store
