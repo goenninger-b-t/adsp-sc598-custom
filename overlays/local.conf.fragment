@@ -14,4 +14,20 @@ ADSP_SC598_SDCARD = "1"
 
 # Sane defaults for development images. Comment out for production.
 EXTRA_IMAGE_FEATURES:append = " debug-tweaks"
+
+# --- SPDX SBOM for the built image (the product SBOM) -----------------------
+# Emit an SPDX SBOM (ISO/IEC 5962; carries the NTIA minimum elements) for the
+# image and every recipe/package it contains. NOTE: this poky (scarthgap)
+# ships SPDX 2.2 only (JSON, not 3.0/JSON-LD) - create-spdx -> create-spdx-2.2.
+# After `make image`, find it under src/<BUILDDIR>/tmp/deploy/:
+#   images/<MACHINE>/<IMAGE>-<MACHINE>.spdx.json       (image SBOM)
+#   images/<MACHINE>/<IMAGE>-<MACHINE>.spdx.tar.zst    (image + all sub-docs)
+#   spdx/recipes/  spdx/packages/                      (per-recipe / per-package)
+INHERIT += "create-spdx"
+SPDX_PRETTY = "1"
+SPDX_ORG = "Goenninger B&T"
+SPDX_SUPPLIER = "Organization: Goenninger B&T"
+# Fuller but slower/larger SBOMs - uncomment if you need source-level detail:
+# SPDX_INCLUDE_SOURCES = "1"
+# SPDX_ARCHIVE_PACKAGED = "1"
 # === END custom-apps overlay ===

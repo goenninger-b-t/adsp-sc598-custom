@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sdcard flash tftp publish new-app list-apps list-serial-port clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp publish new-app list-apps list-serial-port clean distclean shell update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -52,6 +52,7 @@ help:
 	@echo "  make configure                   Configure build dir, enable SD-card boot"
 	@echo "  make apps                        Regenerate meta-custom-apps from src/apps/"
 	@echo "  make image [IMAGE=name]          bitbake the image and copy wic.gz to images/"
+	@echo "  make sbom                        (Re)generate the image's SPDX SBOM into images/"
 	@echo "  make sdcard                      Decompress wic.gz to images/sdcard.img"
 	@echo "  make flash DEV=/dev/sdX          dd images/sdcard.img to /dev/sdX (with safety prompt)"
 	@echo "  make tftp                        Copy fitImage/kernel/dtb/initrd to TFTP_DIR for net-boot"
@@ -121,6 +122,34 @@ image: configure apps
 		echo "[image] Copied $$(basename $$WIC_GZ) -> $$OUT ($$(du -h $$OUT | cut -f1))"; \
 	else \
 		echo "[image] WARNING: no $(IMAGE)-$(MACHINE)*.wic.gz found in $$DEPLOY - skipping copy"; \
+	fi
+	@$(MAKE) --no-print-directory sbom-collect
+
+# (Re)generate the image's SPDX SBOM - a byproduct of the create-spdx class
+# enabled in overlays/local.conf.fragment - and copy it into images/. bitbake is
+# incremental, so this only re-runs the SPDX tasks that are stale.
+sbom: configure apps
+	@echo "[sbom] (Re)generating the SPDX SBOM via bitbake $(IMAGE) ..."
+	@cd "$(SRC_DIR)" && \
+		source ./setup-environment --builddir "$(BUILDDIR)" >/dev/null && \
+		bitbake "$(IMAGE)"
+	@$(MAKE) --no-print-directory sbom-collect
+
+# Internal helper: copy the image SPDX artifacts from the bitbake deploy dir into
+# images/. Shared by `sbom` and `image`.
+sbom-collect:
+	@mkdir -p "$(IMAGES_DIR)"
+	@DEPLOY="$(BUILD_DIR)/tmp/deploy/images/$(MACHINE)"; \
+	found=0; \
+	for f in "$$DEPLOY"/*.spdx.json "$$DEPLOY"/*.spdx.tar.zst; do \
+		[ -e "$$f" ] || continue; \
+		cp -L "$$f" "$(IMAGES_DIR)/"; \
+		echo "[sbom] $$(basename $$f) -> images/ ($$(du -h $$f | cut -f1))"; \
+		found=1; \
+	done; \
+	if [ "$$found" = "0" ]; then \
+		echo "[sbom] WARNING: no *.spdx.json / *.spdx.tar.zst in $$DEPLOY"; \
+		echo "[sbom]          (need INHERIT += \"create-spdx\" active and a completed image build)"; \
 	fi
 
 sdcard:
