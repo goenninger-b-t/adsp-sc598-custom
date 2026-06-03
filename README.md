@@ -330,7 +330,8 @@ sources and committed prebuilt binaries are kept.
 
 ## License
 
-The harness scripts in this repository are yours to license as you choose. The
-software they **build** (Linux, u-boot, poky, `meta-adi`, and the rest of the
-BSP) carries its own upstream licenses; bitbake surfaces them in the image's
-license manifest under the deploy directory.
+This project - the build harness (`Makefile`, `config.mk`, `bin/`, `overlays/`,
+and the example app under `src/apps/`) - is licensed under the **MIT License**;
+see [`LICENSE.md`](LICENSE.md). The software it **builds** (Linux, u-boot, poky,
+`meta-adi`, and the rest of the BSP) carries its own upstream licenses, which
+bitbake surfaces in the image's license manifest under the deploy directory.
