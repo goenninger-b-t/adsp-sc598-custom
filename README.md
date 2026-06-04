@@ -160,6 +160,8 @@ current settings.
 | `make tftp-status` | Report whether a TFTP server (tftpd-hpa / atftpd / dnsmasq) is running, the **address:port** it listens on, the directory it serves, and its **config file** path. With `TFTP_DIR` set, warns if the server serves a *different* dir than you stage into. |
 | `make tftp-ensure` | Ensure a TFTP server is running: no-op if one is up, else start an installed daemon (`sudo systemctl start`). Never auto-installs — prints install guidance if none is present. |
 | `make tftp-test` | List the files in the server's served directory (filesystem view — TFTP has no directory-listing opcode) and verify retrieval by fetching the smallest file over TFTP from loopback and byte-comparing it to the source. Optional `TFTP_TEST_FILE` / `TFTP_TEST_HOST`. |
+| `make sdk` | Build the ADI SDK (`bitbake <image> -c populate_sdk`) and run its installer into `SDK_INSTALL_DIR` — the cross-toolchain plus host OpenOCD/GDB used by `make openocd`. `SDK_SUDO=sudo` to install under `/opt`. |
+| `make openocd` | Start the ADI fork of OpenOCD over a JTAG emulator (ICE-1000/ICE-2000) to debug the SC598 and load U-Boot via GDB on `:3333`. OpenOCD ships in the ADI SDK; all paths/options are `config.mk` vars (`OPENOCD_*`, `SDK_*`). |
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
 | `make list-apps` | List the configured apps and their kinds. |
@@ -305,6 +307,24 @@ directory (a filesystem view — TFTP has no directory-listing opcode, so there 
 no over-the-wire `ls`) and then actually fetches the smallest file over TFTP from
 loopback, byte-comparing it against the on-disk source. Target a specific file
 with `TFTP_TEST_FILE=fitImage`, or a non-loopback server with `TFTP_TEST_HOST=<ip>`.
+
+### JTAG debug (OpenOCD)
+`make openocd` launches the ADI fork of OpenOCD over an ICE-1000/ICE-2000 JTAG
+emulator, reproducing the getting-started guide's "Terminal2" step:
+
+```text
+openocd -f .../interface/ice1000.cfg -f .../target/adspsc59x_a55.cfg
+```
+
+OpenOCD and its `.cfg` scripts come from the **ADI SDK** (not the target image),
+which you build + install once with **`make sdk`** (into `SDK_INSTALL_DIR`,
+default `/opt/<DISTRO>/<SDK_VERSION>`; `SDK_SUDO=sudo` to write `/opt`). With
+OpenOCD running, connect the
+SDK's aarch64 GDB to `:3333` (`target extended-remote :3333`) and `load` U-Boot
+SPL/proper into RAM. Everything is parameterised in `config.mk` — `OPENOCD_ICE`
+(ice1000/ice2000), `OPENOCD_BIN`, `OPENOCD_SCRIPTS`, `OPENOCD_TARGET`,
+`OPENOCD_GDB_PORT`, `OPENOCD_SUDO`, `SDK_VERSION`. The ICE is a libusb device, so
+without udev rules you'll need `OPENOCD_SUDO=sudo`.
 
 ---
 

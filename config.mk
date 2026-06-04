@@ -242,6 +242,157 @@ TFTP_DIR    ?=
 
 
 # ============================================================================
+#  ADI SDK (cross-toolchain + host tools)  (`make sdk`)
+# ============================================================================
+#
+# `make sdk` builds the ADI SDK (Yocto `populate_sdk`) for SDK_IMAGE and runs the
+# resulting self-extracting installer to install it into SDK_INSTALL_DIR. The SDK
+# provides the aarch64 cross-toolchain plus host tools - notably OpenOCD and GDB -
+# that `make openocd` then uses. This mirrors the ADI getting-started guide's
+# "Building the SDK" step.
+#
+#   make sdk                       # build + install to SDK_INSTALL_DIR
+#   make openocd                   # uses the OpenOCD from that SDK
+#
+# The build step is heavy the first time; it is incremental thereafter.
+
+# ------- SDK_VERSION --------------------------------------------------------
+# Version component of the SDK install path. Should match your BSP release
+# (cf. REPO_MANIFEST_FILE: release-5.0.1.xml -> 5.0.1). Feeds SDK_INSTALL_DIR.
+#
+# Examples:
+#   SDK_VERSION ?= 5.0.1
+SDK_VERSION        ?= 5.0.1
+
+# ------- SDK_IMAGE ----------------------------------------------------------
+# The image whose SDK is built: `bitbake $(SDK_IMAGE) -c populate_sdk`. Defaults
+# to your project IMAGE so the SDK matches what you build; ADI's guide uses
+# adsp-sc5xx-minimal-mmc. Any image whose SDK includes nativesdk-openocd works
+# for the openocd target.
+#
+# Examples:
+#   SDK_IMAGE ?= $(IMAGE)
+#   make sdk SDK_IMAGE=adsp-sc5xx-minimal-mmc
+SDK_IMAGE          ?= $(IMAGE)
+
+# ------- SDK_INSTALL_DIR ----------------------------------------------------
+# Where the SDK installer drops the toolchain + host tools. This is the
+# configurable path shared with the openocd target (OPENOCD_SDK_ROOT derives
+# from it). The ADI default /opt/<DISTRO>/<SDK_VERSION> needs root to write
+# (-> set SDK_SUDO=sudo); point it at a user-writable dir to avoid sudo.
+#
+# Examples:
+#   SDK_INSTALL_DIR ?= /opt/adi-distro-glibc/5.0.1
+#   make sdk SDK_INSTALL_DIR=$(HOME)/sc598-sdk        # user-writable, no sudo
+SDK_INSTALL_DIR    ?= /opt/$(DISTRO)/$(SDK_VERSION)
+
+# ------- SDK_SUDO -----------------------------------------------------------
+# Command prefix to run the SDK installer when SDK_INSTALL_DIR is not writable
+# by your user (e.g. the default under /opt). Empty by default.
+#
+# Examples:
+#   SDK_SUDO ?=
+#   make sdk SDK_SUDO=sudo
+SDK_SUDO           ?=
+
+
+# ============================================================================
+#  JTAG / OpenOCD debugging  (`make openocd`)
+# ============================================================================
+#
+# `make openocd` launches the ADI fork of OpenOCD against the SC598 over a JTAG
+# emulator (ICE-1000 / ICE-2000), reproducing the "Terminal2: OpenOCD" step of
+# the ADI getting-started guide (Linux for ADSP-SC5xx Processors 5.0.1):
+#
+#     $sdk_usr/bin/openocd \
+#         -f $sdk_usr/share/openocd/scripts/interface/ice1000.cfg \
+#         -f $sdk_usr/share/openocd/scripts/target/adspsc59x_a55.cfg
+#
+# OpenOCD then serves a GDB remote on OPENOCD_GDB_PORT (3333). In another window
+# you connect the SDK's aarch64 GDB to :3333 to load U-Boot SPL/proper into RAM.
+#
+# WHERE OPENOCD COMES FROM
+#   OpenOCD and its .cfg scripts ship in the ADI *SDK*, not the target image.
+#   Build + install it once with `make sdk` (see the SDK section above). The
+#   OPENOCD_* paths below derive from SDK_INSTALL_DIR. If you built OpenOCD
+#   yourself, override OPENOCD_BIN / OPENOCD_SCRIPTS directly.
+#
+# HARDWARE
+#   Board DEBUG port -> ICE-1000/ICE-2000 -> host USB; board USB/UART -> host
+#   (serial console); BMODE in the JTAG/bootrom position while flashing U-Boot.
+#
+# USB PERMISSIONS
+#   The ICE is a libusb device. Without udev rules granting your user access,
+#   OpenOCD must run as root -> set OPENOCD_SUDO=sudo (or install ADI's rules).
+
+# ------- OPENOCD_SDK_ROOT ---------------------------------------------------
+# The ADI SDK host sysroot ".../usr" that contains bin/openocd and
+# share/openocd/scripts. Derived from SDK_INSTALL_DIR (where `make sdk` puts the
+# SDK). Override wholesale if your SDK lives elsewhere or was built for a
+# non-x86_64 host.
+#
+# Examples:
+#   OPENOCD_SDK_ROOT ?= /opt/adi-distro-glibc/5.0.1/sysroots/x86_64-adi_glibc_sdk-linux/usr
+OPENOCD_SDK_ROOT   ?= $(SDK_INSTALL_DIR)/sysroots/x86_64-adi_glibc_sdk-linux/usr
+
+# ------- OPENOCD_BIN / OPENOCD_SCRIPTS --------------------------------------
+# The openocd binary and the directory holding its interface/ and target/ .cfg
+# trees. Derived from OPENOCD_SDK_ROOT; override if you built ADI's OpenOCD from
+# source (then point at <srcdir>/src/openocd and <srcdir>/tcl).
+#
+# Examples:
+#   OPENOCD_BIN     ?= /opt/.../usr/bin/openocd
+#   OPENOCD_SCRIPTS ?= /home/me/lnxdsp-openocd/tcl
+OPENOCD_BIN        ?= $(OPENOCD_SDK_ROOT)/bin/openocd
+OPENOCD_SCRIPTS    ?= $(OPENOCD_SDK_ROOT)/share/openocd/scripts
+
+# ------- OPENOCD_ICE --------------------------------------------------------
+# Which ADI JTAG emulator you have -> selects interface/<ICE>.cfg.
+#   ice1000   5 MHz JTAG/SWD
+#   ice2000   up to 46 MHz JTAG/SWD
+#
+# Examples:
+#   OPENOCD_ICE ?= ice1000
+#   make openocd OPENOCD_ICE=ice2000
+OPENOCD_ICE        ?= ice1000
+
+# ------- OPENOCD_TARGET -----------------------------------------------------
+# OpenOCD target config under $(OPENOCD_SCRIPTS)/target/. The SC598 Cortex-A55
+# (the core you debug to bring up U-Boot/Linux) is adspsc59x_a55.cfg.
+#
+# Examples:
+#   OPENOCD_TARGET ?= adspsc59x_a55.cfg
+OPENOCD_TARGET     ?= adspsc59x_a55.cfg
+
+# ------- OPENOCD_GDB_PORT ---------------------------------------------------
+# TCP port OpenOCD serves the GDB remote on (connect via
+# `target extended-remote :<port>`). ADI's guide uses the OpenOCD default 3333.
+#
+# Examples:
+#   OPENOCD_GDB_PORT ?= 3333
+OPENOCD_GDB_PORT   ?= 3333
+
+# ------- OPENOCD_SUDO -------------------------------------------------------
+# Command prefix to elevate OpenOCD for raw USB access to the ICE. Empty by
+# default (assumes udev rules grant access). Set to `sudo` if OpenOCD aborts
+# with a libusb "unable to open" / "Permission denied" on the adapter.
+#
+# Examples:
+#   OPENOCD_SUDO ?=
+#   make openocd OPENOCD_SUDO=sudo
+OPENOCD_SUDO       ?=
+
+# ------- OPENOCD_EXTRA_ARGS -------------------------------------------------
+# Extra arguments appended verbatim to the openocd command line (power users):
+# additional `-f file` configs or `-c "command"` TCL commands.
+#
+# Examples:
+#   OPENOCD_EXTRA_ARGS ?=
+#   make openocd OPENOCD_EXTRA_ARGS='-c "adapter speed 5000"'
+OPENOCD_EXTRA_ARGS ?=
+
+
+# ============================================================================
 #  GitHub release publishing (`make publish`)
 # ============================================================================
 #

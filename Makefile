@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test publish new-app list-apps list-serial-port clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test sdk openocd publish new-app list-apps list-serial-port clean distclean shell update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -61,6 +61,10 @@ help:
 	@echo "  make tftp-ensure                 Ensure a TFTP server is running (starts an installed one; sudo)"
 	@echo "  make tftp-test                   List served files + verify one downloads via TFTP (loopback)"
 	@echo "                                   Optional: TFTP_TEST_FILE=<name> TFTP_TEST_HOST=<ip>"
+	@echo "  make sdk                         Build the ADI SDK (populate_sdk) + install to SDK_INSTALL_DIR"
+	@echo "                                   Provides OpenOCD/GDB for 'make openocd'; SDK_SUDO=sudo for /opt"
+	@echo "  make openocd                     Start OpenOCD over ADI ICE JTAG (SC598); serves GDB on :3333"
+	@echo "                                   Optional: OPENOCD_ICE=ice1000|ice2000 OPENOCD_SUDO=sudo (see config.mk)"
 	@echo "  make publish                     Stage versioned asset, [optionally TFTP-stage], upload GH release"
 	@echo "                                   Required: GH_REPO=owner/repo  GH_VERSION=X.Y.Z (strict SemVer 2.0.0, NO 'v' prefix)"
 	@echo "                                   Optional: GH_PROJECT GH_TARGET GH_NOTES_FILE GH_DRAFT=1 GH_PRERELEASE=1"
@@ -213,6 +217,36 @@ tftp-ensure:
 tftp-test:
 	@TFTP_TEST_FILE="$(TFTP_TEST_FILE)" TFTP_TEST_HOST="$(TFTP_TEST_HOST)" \
 		bash "$(BIN_DIR)/tftp-server.sh" test
+
+# Build the ADI SDK (Yocto populate_sdk) for SDK_IMAGE and install it into
+# SDK_INSTALL_DIR via the self-extracting installer. Provides the cross-toolchain
+# plus host OpenOCD/GDB that `make openocd` uses. Heavy first run, incremental
+# after. Installing under /opt needs SDK_SUDO=sudo.
+sdk: configure apps
+	@echo "[sdk] Building the SDK (populate_sdk) for $(SDK_IMAGE) ..."
+	@cd "$(SRC_DIR)" && \
+		source ./setup-environment --builddir "$(BUILDDIR)" >/dev/null && \
+		bitbake "$(SDK_IMAGE)" -c populate_sdk
+	@bash "$(BIN_DIR)/sdk-install.sh" \
+		--deploy-sdk-dir "$(BUILD_DIR)/tmp/deploy/sdk" \
+		--install-dir "$(SDK_INSTALL_DIR)" \
+		--openocd-bin "$(OPENOCD_BIN)" \
+		$(if $(strip $(SDK_SUDO)),--sudo "$(SDK_SUDO)")
+
+# Start the ADI fork of OpenOCD over a JTAG emulator (ICE-1000/2000) to debug the
+# SC598 / load U-Boot via GDB on :$(OPENOCD_GDB_PORT). OpenOCD + its .cfg scripts
+# come from the ADI SDK (build + install it with `make sdk`). Runs in the
+# foreground until Ctrl-C. All paths/options are OPENOCD_* vars in config.mk.
+openocd:
+	@bash "$(BIN_DIR)/openocd-run.sh" \
+		--openocd-bin "$(OPENOCD_BIN)" \
+		--scripts-dir "$(OPENOCD_SCRIPTS)" \
+		--ice "$(OPENOCD_ICE)" \
+		--target "$(OPENOCD_TARGET)" \
+		--gdb-port "$(OPENOCD_GDB_PORT)" \
+		--machine "$(MACHINE)" \
+		$(if $(strip $(OPENOCD_SUDO)),--sudo "$(OPENOCD_SUDO)") \
+		$(if $(strip $(OPENOCD_EXTRA_ARGS)),--extra "$(OPENOCD_EXTRA_ARGS)")
 
 # `make publish` also TFTP-stages when TFTP_DIR is non-empty. The $(if ...)
 # evaluates at Makefile parse time, so the prereq list itself becomes
