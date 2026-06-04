@@ -433,6 +433,25 @@ Never run the build as root: `bin/gen-apps.py`, `bin/configure-build.sh`, and
 bitbake itself all refuse `uid 0`. A deliberate all-root container build can
 override the harness guards with `ADSP_ALLOW_ROOT=1`.
 
+**`make openocd` fails with `LIBUSB_ERROR_ACCESS` / "cannot connect to ICE-1000
+emulator"** — OpenOCD found the JTAG adapter but your user can't open its USB
+device. On the SC598-SOM-EZKIT the debug interface is an on-board FTDI
+**FT4232H** (`0403:6011`). This repo defaults `OPENOCD_SUDO=sudo`, so
+`make openocd` runs elevated and works out of the box. For least privilege (no
+sudo, no root-owned OpenOCD server), install a udev rule granting access and
+replug the debug cable:
+
+```bash
+echo 'SUBSYSTEM=="usb", ATTR{idVendor}=="0403", ATTR{idProduct}=="6011", MODE="0666"' \
+  | sudo tee /etc/udev/rules.d/99-adi-ice1000.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+Then set `OPENOCD_SUDO=` (empty). `MODE="0666"` also works over SSH; for a tighter
+rule use `MODE="0660", GROUP="plugdev"` and add yourself to `plugdev`. If the
+error then becomes `LIBUSB_ERROR_BUSY`, the `ftdi_sio` kernel driver has claimed
+the channel — OpenOCD normally auto-detaches it, otherwise unbind that interface.
+
 ---
 
 ## Version control

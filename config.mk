@@ -373,14 +373,16 @@ OPENOCD_TARGET     ?= adspsc59x_a55.cfg
 OPENOCD_GDB_PORT   ?= 3333
 
 # ------- OPENOCD_SUDO -------------------------------------------------------
-# Command prefix to elevate OpenOCD for raw USB access to the ICE. Empty by
-# default (assumes udev rules grant access). Set to `sudo` if OpenOCD aborts
-# with a libusb "unable to open" / "Permission denied" on the adapter.
+# Command prefix to elevate OpenOCD for raw USB access to the ICE. Defaults to
+# `sudo` because the ICE / on-board FTDI debug device is root-owned out of the
+# box, so OpenOCD otherwise aborts with libusb LIBUSB_ERROR_ACCESS ("cannot
+# connect to ICE-1000 emulator"). For least privilege, install a udev rule for
+# the adapter (see README "Troubleshooting") and set this back to empty.
 #
 # Examples:
-#   OPENOCD_SUDO ?=
-#   make openocd OPENOCD_SUDO=sudo
-OPENOCD_SUDO       ?=
+#   OPENOCD_SUDO ?= sudo
+#   make openocd OPENOCD_SUDO=            # after installing a udev rule
+OPENOCD_SUDO       ?= sudo
 
 # ------- OPENOCD_EXTRA_ARGS -------------------------------------------------
 # Extra arguments appended verbatim to the openocd command line (power users):
