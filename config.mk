@@ -394,6 +394,45 @@ OPENOCD_SUDO       ?= sudo
 OPENOCD_EXTRA_ARGS ?=
 
 
+# ------- GDB_BIN ------------------------------------------------------------
+# The SDK's aarch64 cross-GDB that `make gdb` runs to attach to OpenOCD.
+# Auto-resolved from the installed SDK (the glibc build sorts first); override
+# if it can't be found or you want the musl variant.
+#
+# Examples:
+#   GDB_BIN ?= $(OPENOCD_SDK_ROOT)/bin/aarch64-adi_glibc-linux/aarch64-adi_glibc-linux-gdb
+GDB_BIN            ?= $(firstword $(wildcard $(OPENOCD_SDK_ROOT)/bin/aarch64-*/aarch64-*-gdb $(OPENOCD_SDK_ROOT)/bin/aarch64-*-gdb))
+
+# ------- GDB_ELF ------------------------------------------------------------
+# Optional ELF (with symbols) for `make gdb` to load — typically the U-Boot SPL
+# or proper image, so you can `load` it into RAM over JTAG. Empty -> `make gdb`
+# auto-loads u-boot-spl-<board>.elf from the deploy dir if present, else connects
+# with no symbol file.
+#
+# Examples:
+#   GDB_ELF ?=
+#   make gdb GDB_ELF=src/build/tmp/deploy/images/$(MACHINE)/u-boot-proper-sc598-som-ezkit.elf
+GDB_ELF            ?=
+
+# ------- GDB_HOST -----------------------------------------------------------
+# Host running OpenOCD. Empty -> localhost (the OpenOCD that `make openocd`
+# started on this machine). Set when OpenOCD runs on another host.
+#
+# Examples:
+#   GDB_HOST ?=
+#   make gdb GDB_HOST=192.168.1.50
+GDB_HOST           ?=
+
+# ------- GDB_EXTRA_ARGS -----------------------------------------------------
+# Extra arguments appended to the gdb command line (power users), e.g. extra
+# `-ex "command"` startup commands to auto-load and run.
+#
+# Examples:
+#   GDB_EXTRA_ARGS ?=
+#   make gdb GDB_EXTRA_ARGS='-ex "load" -ex "continue"'
+GDB_EXTRA_ARGS     ?=
+
+
 # ============================================================================
 #  GitHub release publishing (`make publish`)
 # ============================================================================

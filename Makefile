@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test sdk openocd publish new-app list-apps list-serial-port clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test sdk openocd gdb publish new-app list-apps list-serial-port clean distclean shell update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -65,6 +65,8 @@ help:
 	@echo "                                   Provides OpenOCD/GDB for 'make openocd'; SDK_SUDO=sudo for /opt"
 	@echo "  make openocd                     Start OpenOCD over ADI ICE JTAG (SC598); serves GDB on :3333"
 	@echo "                                   Optional: OPENOCD_ICE=ice1000|ice2000 OPENOCD_SUDO=sudo (see config.mk)"
+	@echo "  make gdb                         Attach the SDK's aarch64 GDB to a running 'make openocd' (:3333)"
+	@echo "                                   Optional: GDB_ELF=<u-boot.elf> GDB_HOST=<ip> (see config.mk)"
 	@echo "  make publish                     Stage versioned asset, [optionally TFTP-stage], upload GH release"
 	@echo "                                   Required: GH_REPO=owner/repo  GH_VERSION=X.Y.Z (strict SemVer 2.0.0, NO 'v' prefix)"
 	@echo "                                   Optional: GH_PROJECT GH_TARGET GH_NOTES_FILE GH_DRAFT=1 GH_PRERELEASE=1"
@@ -247,6 +249,20 @@ openocd:
 		--machine "$(MACHINE)" \
 		$(if $(strip $(OPENOCD_SUDO)),--sudo "$(OPENOCD_SUDO)") \
 		$(if $(strip $(OPENOCD_EXTRA_ARGS)),--extra "$(OPENOCD_EXTRA_ARGS)")
+
+# Attach the SDK's aarch64 GDB to the OpenOCD that `make openocd` is running
+# (target extended-remote :$(OPENOCD_GDB_PORT)). Run this in a SECOND terminal
+# while `make openocd` holds the first. Loads GDB_ELF (or an auto-found
+# u-boot-spl-<board>.elf from the deploy dir) so you can `load` U-Boot, then `c`.
+gdb:
+	@bash "$(BIN_DIR)/gdb-run.sh" \
+		--gdb-bin "$(GDB_BIN)" \
+		--host "$(GDB_HOST)" \
+		--port "$(OPENOCD_GDB_PORT)" \
+		--elf "$(GDB_ELF)" \
+		--deploy-dir "$(BUILD_DIR)/tmp/deploy/images/$(MACHINE)" \
+		--machine "$(MACHINE)" \
+		$(if $(strip $(GDB_EXTRA_ARGS)),--extra "$(GDB_EXTRA_ARGS)")
 
 # `make publish` also TFTP-stages when TFTP_DIR is non-empty. The $(if ...)
 # evaluates at Makefile parse time, so the prereq list itself becomes

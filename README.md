@@ -181,6 +181,7 @@ current settings.
 | `make tftp-test` | List the files in the server's served directory (filesystem view — TFTP has no directory-listing opcode) and verify retrieval by fetching the smallest file over TFTP from loopback and byte-comparing it to the source. Optional `TFTP_TEST_FILE` / `TFTP_TEST_HOST`. |
 | `make sdk` | Build the ADI SDK (`bitbake <image> -c populate_sdk`) and run its installer into `SDK_INSTALL_DIR` — the cross-toolchain plus host OpenOCD/GDB used by `make openocd`. `SDK_SUDO=sudo` to install under `/opt`. |
 | `make openocd` | Start the ADI fork of OpenOCD over a JTAG emulator (ICE-1000/ICE-2000) to debug the SC598 and load U-Boot via GDB on `:3333`. OpenOCD ships in the ADI SDK; all paths/options are `config.mk` vars (`OPENOCD_*`, `SDK_*`). |
+| `make gdb` | Attach the SDK's aarch64 cross-GDB to the OpenOCD that `make openocd` is running (`target extended-remote :3333`) — run it in a **second terminal**. Auto-loads `GDB_ELF` or `u-boot-spl-<board>.elf` so you can `load` U-Boot into RAM. |
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
 | `make list-apps` | List the configured apps and their kinds. |
@@ -216,6 +217,7 @@ uses `?=`, so precedence is: **command line > environment > `config.mk`**.
 | `OPENOCD_GDB_PORT` | `3333` | Port OpenOCD serves the GDB remote on. |
 | `OPENOCD_SUDO` | *(empty)* | Prefix to elevate OpenOCD for ICE USB access (`sudo` when no udev rules). |
 | `OPENOCD_BIN` / `_SCRIPTS` / `_SDK_ROOT` / `_EXTRA_ARGS` | derived from `SDK_INSTALL_DIR` | OpenOCD binary, scripts dir, SDK sysroot, and extra CLI args. |
+| `GDB_BIN` / `GDB_ELF` / `GDB_HOST` | auto-found / *(empty)* / localhost | `make gdb`: the SDK aarch64 GDB (auto-found in the SDK), an optional U-Boot ELF to load, and the host running OpenOCD. |
 | `REPO_TOOL_URL` | Google Cloud Storage URL | Where to fetch the `repo` launcher binary (it is **Google's** tool, not ADI's). |
 | `REPO_MANIFEST_URL` | `…/lnxdsp-repo-manifest.git` | The ADI manifest git repo (`repo init -u`). |
 | `REPO_MANIFEST_BRANCH` | `main` | Manifest branch (`repo init -b`). |
@@ -347,12 +349,13 @@ openocd -f .../interface/ice1000.cfg -f .../target/adspsc59x_a55.cfg
 OpenOCD and its `.cfg` scripts come from the **ADI SDK** (not the target image),
 which you build + install once with **`make sdk`** (into `SDK_INSTALL_DIR`,
 default `/opt/<DISTRO>/<SDK_VERSION>`; `SDK_SUDO=sudo` to write `/opt`). With
-OpenOCD running, connect the
-SDK's aarch64 GDB to `:3333` (`target extended-remote :3333`) and `load` U-Boot
-SPL/proper into RAM. Everything is parameterised in `config.mk` — `OPENOCD_ICE`
+OpenOCD running, **`make gdb`** in a second terminal attaches the SDK's aarch64
+GDB to `:3333` (`target extended-remote :3333`), auto-loading
+`u-boot-spl-<board>.elf` from the deploy dir (or `GDB_ELF`) so you can `load` it
+into RAM and `c`. Everything is parameterised in `config.mk` — `OPENOCD_ICE`
 (ice1000/ice2000), `OPENOCD_BIN`, `OPENOCD_SCRIPTS`, `OPENOCD_TARGET`,
-`OPENOCD_GDB_PORT`, `OPENOCD_SUDO`, `SDK_VERSION`. The ICE is a libusb device, so
-without udev rules you'll need `OPENOCD_SUDO=sudo`.
+`OPENOCD_GDB_PORT`, `OPENOCD_SUDO`, `SDK_VERSION`, and the `GDB_*` vars. The ICE
+is a libusb device, so without udev rules you'll need `OPENOCD_SUDO=sudo`.
 
 ---
 
