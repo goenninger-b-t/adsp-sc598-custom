@@ -190,6 +190,26 @@ DISTRO      ?= adi-distro-glibc
 IMAGE       ?= adi-sc5xx-custom
 
 
+# ------- SOM_REV / CRR_REV --------------------------------------------------
+# Hardware revision selectors written into conf/local.conf by `make configure`
+# (ADI getting-started: "Check and select the appropriate revision"):
+#     SOM_REV = "<value>"
+#     CRR_REV = "<value>"
+# They pin the build to your specific SoM and carrier-board revision. Leave them
+# EMPTY to use the BSP default, which ADI documents as valid for SOM Rev A/B/C/D
+# with an EZ-Kit Carrier rev D - set them only if your hardware differs. (Empty
+# values are omitted from local.conf; do NOT set the literal "<...>" placeholder,
+# it is not a valid revision.) Identify your revisions from the board, per ADI's
+# "Guide to identify SOM and EZKit Carrier revision numbers".
+#
+# Examples:
+#   SOM_REV ?=
+#   CRR_REV ?=
+#   make image SOM_REV=D CRR_REV=D
+SOM_REV     ?=
+CRR_REV     ?=
+
+
 # ----------------------------------------------------------------------------
 #  TFTP staging  (`make tftp`)
 # ----------------------------------------------------------------------------

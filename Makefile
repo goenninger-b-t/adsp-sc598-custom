@@ -108,7 +108,9 @@ configure:
 		--project-root "$(PROJECT_ROOT)" \
 		--builddir "$(BUILDDIR)" \
 		--machine "$(MACHINE)" \
-		--distro "$(DISTRO)"
+		--distro "$(DISTRO)" \
+		--som-rev "$(SOM_REV)" \
+		--crr-rev "$(CRR_REV)"
 
 apps:
 	@python3 "$(BIN_DIR)/gen-apps.py" generate \

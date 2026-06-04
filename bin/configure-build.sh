@@ -18,6 +18,8 @@ PROJECT_ROOT=""
 BUILDDIR="build"
 MACHINE=""
 DISTRO=""
+SOM_REV=""
+CRR_REV=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -25,6 +27,8 @@ while [[ $# -gt 0 ]]; do
         --builddir)     BUILDDIR="$2";     shift 2 ;;
         --machine)      MACHINE="$2";      shift 2 ;;
         --distro)       DISTRO="$2";       shift 2 ;;
+        --som-rev)      SOM_REV="$2";      shift 2 ;;
+        --crr-rev)      CRR_REV="$2";      shift 2 ;;
         *) echo "configure-build.sh: unknown arg: $1" >&2; exit 1 ;;
     esac
 done
@@ -98,11 +102,38 @@ apply_overlay() {
     cat "$fragment" >> "$target"
 }
 
+# Inject the hardware-revision selectors (ADI getting-started: "Check and select
+# the appropriate revision") into the local.conf overlay block, just before its
+# END marker - so they live inside the managed block and are regenerated on every
+# configure (no duplication on re-run). Only emitted when set; unset -> the BSP
+# default, which ADI documents as valid for SOM Rev A/B/C/D, EZ-Kit Carrier rev D.
+inject_revisions() {
+    local target="$1"
+    local end="# === END custom-apps overlay ==="
+    local block=""
+    if [ -n "$SOM_REV" ]; then block+="SOM_REV = \"$SOM_REV\""$'\n'; fi
+    if [ -n "$CRR_REV" ]; then block+="CRR_REV = \"$CRR_REV\""$'\n'; fi
+    [ -n "$block" ] || return 0
+    local tmp; tmp="$(mktemp)"
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [ "$line" = "$end" ]; then
+            printf '# Hardware revision selectors (SOM_REV / CRR_REV) - see config.mk.\n'
+            printf '%s' "$block"
+        fi
+        printf '%s\n' "$line"
+    done < "$target" > "$tmp"
+    cat "$tmp" > "$target"   # overwrite content, preserve the file's perms
+    rm -f "$tmp"
+    echo "[configure] hardware revision -> ${SOM_REV:+SOM_REV=\"$SOM_REV\" }${CRR_REV:+CRR_REV=\"$CRR_REV\"}"
+}
+
 apply_overlay "$BUILD_DIR/conf/local.conf"    "$OVERLAYS_DIR/local.conf.fragment"
+inject_revisions "$BUILD_DIR/conf/local.conf"
 apply_overlay "$BUILD_DIR/conf/bblayers.conf" "$OVERLAYS_DIR/bblayers.conf.fragment"
 
 echo "[configure] Done."
 echo "[configure]   build dir : $BUILD_DIR"
 echo "[configure]   machine   : $MACHINE"
 echo "[configure]   distro    : $DISTRO"
+echo "[configure]   som/crr   : ${SOM_REV:-<BSP default>} / ${CRR_REV:-<BSP default>}"
 echo "[configure]   layer dir : $LAYER_DIR"
