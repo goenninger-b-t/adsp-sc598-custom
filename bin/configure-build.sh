@@ -5,6 +5,15 @@
 # Re-running this script is safe and a no-op once overlays are in place.
 set -euo pipefail
 
+# Refuse to run as root: writing the build dir / generated layer as root leaves
+# root-owned files the normal user cannot later regenerate, and bitbake won't run
+# as root anyway. Override with ADSP_ALLOW_ROOT=1 for a deliberate container build.
+if [ "$(id -u)" -eq 0 ] && [ "${ADSP_ALLOW_ROOT:-}" != "1" ]; then
+    echo "configure-build.sh: refusing to run as root - re-run without sudo." >&2
+    echo "  (Override: ADSP_ALLOW_ROOT=1 if you really mean it.)" >&2
+    exit 1
+fi
+
 PROJECT_ROOT=""
 BUILDDIR="build"
 MACHINE=""

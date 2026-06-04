@@ -73,6 +73,56 @@ def info(msg):
     print(f"[gen-apps] {msg}")
 
 
+def refuse_root():
+    """Refuse to run as root.
+
+    Writing the generated layer as root leaves root-owned files under
+    src/layers/ that the normal user can no longer regenerate (the next,
+    non-root run cannot rmtree them), and bitbake refuses to run as root
+    downstream anyway. Fail fast and clearly instead of creating that trap.
+    Override with ADSP_ALLOW_ROOT=1 for a deliberate all-root container build.
+    """
+    if os.getuid() == 0 and os.environ.get("ADSP_ALLOW_ROOT") != "1":
+        die(
+            "refusing to run as root.\n"
+            "  Running as root creates root-owned files under src/layers/ that your\n"
+            "  normal user cannot later regenerate, and bitbake won't run as root.\n"
+            "  Re-run without sudo.  (Override: ADSP_ALLOW_ROOT=1 if you really mean it.)"
+        )
+
+
+def safe_rmtree(path):
+    """shutil.rmtree, but turn a foreign-ownership permission error into an
+    actionable message instead of an 11-line traceback.
+
+    Unlinking a file requires write permission on its *parent directory*, not on
+    the file itself - so a recipe dir left behind by a previous `sudo make apps`
+    (owned by root) cannot be removed by the normal user even though the files
+    inside look group-writable. Detect that case and say exactly how to recover.
+    """
+    try:
+        shutil.rmtree(path)
+    except PermissionError as e:
+        try:
+            owner = os.stat(path).st_uid
+        except OSError:
+            owner = None
+        me = os.getuid()
+        hint = ""
+        if owner is not None and owner != me:
+            hint = (
+                f"\n  It is owned by uid {owner} but you are uid {me} - you almost\n"
+                "  certainly ran this tool with sudo once."
+            )
+        die(
+            f"cannot remove generated dir:\n  {path}\n"
+            f"  ({e.strerror}: {e.filename}){hint}\n"
+            "  This layer is regenerated from src/apps/, so deleting it loses nothing.\n"
+            f"  Fix:  sudo rm -rf {path}\n"
+            "  Then re-run WITHOUT sudo."
+        )
+
+
 def md5_of(path):
     h = hashlib.md5()
     with open(path, "rb") as f:
@@ -494,7 +544,7 @@ def emit_layer(apps, layer_dir, default_image):
     for p in recipes_root.iterdir():
         if p.is_dir() and p.name not in current_names:
             info(f"removing orphaned recipe: {p.name}")
-            shutil.rmtree(p)
+            safe_rmtree(p)
 
     for m, app_dir in apps:
         emit_recipe(m, app_dir, recipes_root)
@@ -545,7 +595,7 @@ def emit_recipe(m, app_dir, recipes_root):
 
     # Fully regenerate each recipe directory to avoid stale files.
     if recipe_dir.exists():
-        shutil.rmtree(recipe_dir)
+        safe_rmtree(recipe_dir)
     files_dir.mkdir(parents=True, exist_ok=True)
 
     kind = m["kind"]
@@ -578,6 +628,7 @@ def emit_recipe(m, app_dir, recipes_root):
 # ----------------------------------------------------------------- subcommands
 
 def cmd_generate(args):
+    refuse_root()
     apps_dir = Path(args.apps_dir).resolve()
     layer_dir = Path(args.layer_dir).resolve()
 
@@ -605,6 +656,7 @@ def cmd_generate(args):
 
 
 def cmd_scaffold(args):
+    refuse_root()
     apps_dir = Path(args.apps_dir).resolve()
     name = args.name
     kind = args.kind
