@@ -145,6 +145,7 @@ make image                       # = configure + apps + bitbake adi-sc5xx-custom
 # 3a. Boot from SD card
 make sdcard                      # images/sdcard.img
 make flash DEV=/dev/sdX          # guarded; type YES to confirm
+make terminal                    # watch it boot on the serial console (Ctrl-A X to exit)
 
 # 3b. …or boot over the network
 make tftp TFTP_DIR=/srv/tftp/sc598
@@ -182,6 +183,7 @@ current settings.
 | `make sdk` | Build the ADI SDK (`bitbake <image> -c populate_sdk`) and run its installer into `SDK_INSTALL_DIR` — the cross-toolchain plus host OpenOCD/GDB used by `make openocd`. `SDK_SUDO=sudo` to install under `/opt`. |
 | `make openocd` | Start the ADI fork of OpenOCD over a JTAG emulator (ICE-1000/ICE-2000) to debug the SC598 and load U-Boot via GDB on `:3333`. OpenOCD ships in the ADI SDK; all paths/options are `config.mk` vars (`OPENOCD_*`, `SDK_*`). |
 | `make gdb` | Attach the SDK's aarch64 cross-GDB to the OpenOCD that `make openocd` is running (`target extended-remote :3333`) — run it in a **second terminal**. Auto-loads `GDB_ELF` or `u-boot-spl-<board>.elf` so you can `load` U-Boot into RAM. |
+| `make terminal` | Open a **minicom** serial console to the SC598 over its USB/UART. Checks minicom is installed (prints how to install it otherwise), auto-detects the port (or `SERIAL_PORT=`), and connects at `SERIAL_BAUD` (default 115200). Exit with Ctrl-A X. |
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
 | `make list-apps` | List the configured apps and their kinds. |
@@ -218,6 +220,7 @@ uses `?=`, so precedence is: **command line > environment > `config.mk`**.
 | `OPENOCD_SUDO` | *(empty)* | Prefix to elevate OpenOCD for ICE USB access (`sudo` when no udev rules). |
 | `OPENOCD_BIN` / `_SCRIPTS` / `_SDK_ROOT` / `_EXTRA_ARGS` | derived from `SDK_INSTALL_DIR` | OpenOCD binary, scripts dir, SDK sysroot, and extra CLI args. |
 | `GDB_BIN` / `GDB_ELF` / `GDB_HOST` | auto-found / *(empty)* / localhost | `make gdb`: the SDK aarch64 GDB (auto-found in the SDK), an optional U-Boot ELF to load, and the host running OpenOCD. |
+| `SERIAL_PORT` / `SERIAL_BAUD` | auto-detect / `115200` | `make terminal`: serial console device (auto-detected if empty) and baud rate. |
 | `REPO_TOOL_URL` | Google Cloud Storage URL | Where to fetch the `repo` launcher binary (it is **Google's** tool, not ADI's). |
 | `REPO_MANIFEST_URL` | `…/lnxdsp-repo-manifest.git` | The ADI manifest git repo (`repo init -u`). |
 | `REPO_MANIFEST_BRANCH` | `main` | Manifest branch (`repo init -b`). |
@@ -306,6 +309,16 @@ configure`, or `make distclean` and rebuild.
 ---
 
 ## Booting the board
+
+### Serial console
+`make terminal` opens a **minicom** session on the board's USB/UART — where you
+watch U-Boot and Linux boot, and "Terminal1" alongside `make openocd` / `make
+gdb`. It checks minicom is installed (and tells you how to install it otherwise),
+auto-detects the serial port (or set `SERIAL_PORT=/dev/ttyUSBx` — see `make
+list-serial-port`), and opens it at `SERIAL_BAUD` (default 115200, 8N1) via
+`minicom -D <port> -b <baud> -o`. Exit minicom with **Ctrl-A** then **X**. Serial
+access needs `dialout` membership (`sudo usermod -aG dialout $USER`, then re-login)
+or `make terminal TERMINAL_SUDO=sudo`.
 
 ### SD card
 `make image` produces a `wic.gz`; `make sdcard` decompresses it to

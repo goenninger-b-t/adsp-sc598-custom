@@ -434,6 +434,54 @@ GDB_EXTRA_ARGS     ?=
 
 
 # ============================================================================
+#  Serial console  (`make terminal`)
+# ============================================================================
+#
+# `make terminal` opens a minicom serial console on the board's USB/UART — the
+# "Terminal1" you watch U-Boot / Linux boot on, alongside `make openocd` and
+# `make gdb`. It checks minicom is installed (and prints how to install it),
+# resolves the serial port, and runs `minicom -D <port> -b <baud> -o`.
+# Exit minicom with Ctrl-A then X.
+
+# ------- SERIAL_PORT --------------------------------------------------------
+# The serial device for the SC598 console. Empty -> `make terminal` auto-detects
+# it (a single USB-serial port is used directly; if several are present it lists
+# them and asks you to choose, since the board's FTDI bridge exposes multiple
+# channels). See `make list-serial-port`.
+#
+# Examples:
+#   SERIAL_PORT ?=
+#   make terminal SERIAL_PORT=/dev/ttyUSB0
+SERIAL_PORT        ?=
+
+# ------- SERIAL_BAUD --------------------------------------------------------
+# Console baud rate. The ADSP-SC5xx default is 115200 (8N1).
+#
+# Examples:
+#   SERIAL_BAUD ?= 115200
+SERIAL_BAUD        ?= 115200
+
+# ------- TERMINAL_SUDO ------------------------------------------------------
+# Command prefix to run minicom when you lack serial access. Empty by default
+# (assumes you are in the `dialout` group). Set to `sudo` otherwise — though
+# adding yourself to dialout (sudo usermod -aG dialout $USER) is the cleaner fix.
+#
+# Examples:
+#   TERMINAL_SUDO ?=
+#   make terminal TERMINAL_SUDO=sudo
+TERMINAL_SUDO      ?=
+
+# ------- MINICOM_ARGS -------------------------------------------------------
+# Extra arguments appended to the minicom command line (power users), e.g.
+# `-C boot.log` to capture the session to a file.
+#
+# Examples:
+#   MINICOM_ARGS ?=
+#   make terminal MINICOM_ARGS='-C boot.log'
+MINICOM_ARGS       ?=
+
+
+# ============================================================================
 #  GitHub release publishing (`make publish`)
 # ============================================================================
 #
