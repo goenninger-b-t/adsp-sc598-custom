@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure publish new-app list-apps list-serial-port clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test publish new-app list-apps list-serial-port clean distclean shell update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -59,6 +59,8 @@ help:
 	@echo "                                   Required: TFTP_DIR=/srv/tftp/... (or set in config.mk)"
 	@echo "  make tftp-status                 Show TFTP server state: listen addr:port, served dir, config file"
 	@echo "  make tftp-ensure                 Ensure a TFTP server is running (starts an installed one; sudo)"
+	@echo "  make tftp-test                   List served files + verify one downloads via TFTP (loopback)"
+	@echo "                                   Optional: TFTP_TEST_FILE=<name> TFTP_TEST_HOST=<ip>"
 	@echo "  make publish                     Stage versioned asset, [optionally TFTP-stage], upload GH release"
 	@echo "                                   Required: GH_REPO=owner/repo  GH_VERSION=X.Y.Z (strict SemVer 2.0.0, NO 'v' prefix)"
 	@echo "                                   Optional: GH_PROJECT GH_TARGET GH_NOTES_FILE GH_DRAFT=1 GH_PRERELEASE=1"
@@ -203,6 +205,14 @@ tftp-status:
 tftp-ensure:
 	@bash "$(BIN_DIR)/tftp-server.sh" ensure \
 		$(if $(strip $(TFTP_DIR)),--tftp-dir "$(TFTP_DIR)")
+
+# tftp-test operates on the dir the *server* serves (discovered from its config),
+# not TFTP_DIR, so it does not take --tftp-dir. The optional TFTP_TEST_FILE /
+# TFTP_TEST_HOST cmdline vars are forwarded into the recipe's environment (make
+# variables are not otherwise visible to the script).
+tftp-test:
+	@TFTP_TEST_FILE="$(TFTP_TEST_FILE)" TFTP_TEST_HOST="$(TFTP_TEST_HOST)" \
+		bash "$(BIN_DIR)/tftp-server.sh" test
 
 # `make publish` also TFTP-stages when TFTP_DIR is non-empty. The $(if ...)
 # evaluates at Makefile parse time, so the prereq list itself becomes

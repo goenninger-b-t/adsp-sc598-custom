@@ -9,6 +9,11 @@
 #   ensure   Make sure a TFTP server is running: if one is already up, do nothing;
 #            otherwise start an installed server (via sudo). Exits 0 if a server
 #            ends up running, non-zero if none is installed / it could not start.
+#   test     List the files in the served directory (a filesystem view — TFTP has
+#            no directory-listing opcode, RFC 1350) and verify retrieval by
+#            actually fetching the smallest file over TFTP from loopback and
+#            byte-comparing it to the source. Exits 0 on a successful fetch,
+#            non-zero otherwise. Overrides: TFTP_TEST_FILE=<name>, TFTP_TEST_HOST=<ip>.
 #
 # WHY THIS EXISTS
 #   `make tftp` only *stages* boot files into TFTP_DIR; it never checks that a
@@ -279,13 +284,127 @@ cmd_ensure() {
     exit 1
 }
 
+# ------------------------------------------------------------- test subcommand
+
+# Pick an available TFTP *client* (for `test`). Dedicated clients first; busybox's
+# applet is the common fallback. Sets TFTP_CLIENT ("" if none found). Note curl
+# only qualifies when tftp was compiled into its protocol list.
+TFTP_CLIENT=""
+pick_tftp_client() {
+    if   have tftp;  then TFTP_CLIENT="tftp"
+    elif have atftp; then TFTP_CLIENT="atftp"
+    elif have curl && curl --version 2>/dev/null | grep -qiw tftp; then TFTP_CLIENT="curl"
+    elif have busybox && busybox --list 2>/dev/null | grep -qx tftp; then TFTP_CLIENT="busybox"
+    else TFTP_CLIENT=""
+    fi
+}
+
+# tftp_get HOST REMOTE LOCAL — fetch REMOTE (path relative to the TFTP root) into
+# LOCAL using $TFTP_CLIENT. Returns the client's exit status, but callers ALSO
+# verify by output: the tftp-hpa client notoriously exits 0 even on failure.
+tftp_get() {
+    local host="$1" remote="$2" local="$3"
+    case "$TFTP_CLIENT" in
+        tftp)    tftp "$host" -m octet -c get "$remote" "$local" ;;
+        atftp)   atftp --option "mode octet" --get -r "$remote" -l "$local" "$host" ;;
+        curl)    curl -fsS -o "$local" "tftp://$host/$remote" ;;
+        busybox) busybox tftp -g -r "$remote" -l "$local" "$host" ;;
+        *)       return 127 ;;
+    esac
+}
+
+# Host to fetch from: loopback when the server binds a wildcard (the usual case),
+# else the specific bind address. Override with TFTP_TEST_HOST.
+test_host() {
+    if [ -n "${TFTP_TEST_HOST:-}" ]; then echo "$TFTP_TEST_HOST"; return 0; fi
+    local first; first="$(udp69_addrs | sed 's/,.*//')"
+    case "$first" in
+        ""|0.0.0.0:*|\*:*|"[::]:"*) echo "127.0.0.1" ;;    # wildcard / unknown
+        \[*\]:*)  local h="${first%]:*}"; echo "${h#[}" ;;  # [v6]:port -> v6
+        *)        echo "${first%:*}" ;;                     # specific v4:port
+    esac
+}
+
+cmd_test() {
+    detect
+    if [ -z "$RUNNING_SVC" ] && ! udp69_listening; then
+        echo "[tftp] No TFTP server is running — nothing to test." >&2
+        echo "[tftp]        Start one first:  make tftp-ensure" >&2
+        exit 1
+    fi
+
+    local dir="${SERVING_DIR:-}" host
+    host="$(test_host)"
+    echo "[tftp] Retrieval test against $host (server: ${RUNNING_SVC:-unrecognised daemon})"
+
+    # 1. List the served files. TFTP has NO directory-listing opcode (RFC 1350),
+    #    so this is necessarily a filesystem view of the server's root directory.
+    if [ -z "$dir" ]; then
+        echo "[tftp]   (served dir unknown — cannot list files)"
+    elif [ ! -d "$dir" ] || [ ! -r "$dir" ]; then
+        echo "[tftp]   (served dir $dir not readable by $(id -un) — cannot list files)"
+    else
+        echo "[tftp] Files in served dir $dir"
+        echo "[tftp]   (filesystem view; TFTP itself cannot enumerate files):"
+        (cd "$dir" && find . -type f -printf '         %10s  %P\n' 2>/dev/null | sort -k2) || true
+        local nfiles
+        nfiles="$( (cd "$dir" && find . -type f 2>/dev/null | wc -l) || echo 0)"
+        echo "[tftp]   $nfiles file(s) total"
+    fi
+
+    # 2. Need a client to actually fetch.
+    pick_tftp_client
+    if [ -z "$TFTP_CLIENT" ]; then
+        echo "[tftp] FAIL: no TFTP client installed to test retrieval." >&2
+        echo "[tftp]        install one:  sudo apt-get install tftp-hpa   # or atftp" >&2
+        exit 1
+    fi
+
+    # 3. Choose a file: TFTP_TEST_FILE if given, else the smallest non-empty one.
+    local remote="${TFTP_TEST_FILE:-}"
+    if [ -z "$remote" ] && [ -n "$dir" ] && [ -r "$dir" ]; then
+        remote="$(cd "$dir" && find . -type f -size +0c -printf '%s\t%P\n' 2>/dev/null \
+                    | sort -n | head -1 | cut -f2-)"
+    fi
+    if [ -z "$remote" ]; then
+        echo "[tftp] FAIL: no non-empty file to retrieve (served dir empty/unreadable)." >&2
+        echo "[tftp]        stage boot files first (make tftp), or set TFTP_TEST_FILE=<name>." >&2
+        exit 1
+    fi
+
+    # 4. Fetch into a temp file and verify by OUTPUT (not just the exit status).
+    local tmp out rc=0
+    tmp="$(mktemp)"
+    echo "[tftp] Fetching '$remote' via $TFTP_CLIENT from $host ..."
+    out="$(tftp_get "$host" "$remote" "$tmp" 2>&1)" || rc=$?
+
+    if [ ! -s "$tmp" ]; then
+        echo "[tftp] FAIL: '$remote' came back empty or was not created (client rc=$rc)." >&2
+        if [ -n "$out" ]; then printf '%s\n' "$out" | sed 's/^/[tftp]        /' >&2; fi
+        rm -f "$tmp"; exit 1
+    fi
+
+    local got src; got="$(stat -c %s "$tmp" 2>/dev/null || echo '?')"; src="$dir/$remote"
+    if [ -n "$dir" ] && [ -r "$src" ]; then
+        if cmp -s "$src" "$tmp"; then
+            echo "[tftp] PASS: retrieved '$remote' ($got bytes) — byte-exact match with source."
+            rm -f "$tmp"; exit 0
+        fi
+        echo "[tftp] FAIL: '$remote' retrieved ($got bytes) but differs from the source file." >&2
+        rm -f "$tmp"; exit 1
+    fi
+    echo "[tftp] PASS: retrieved '$remote' ($got bytes)  [source not readable for byte-compare]."
+    rm -f "$tmp"; exit 0
+}
+
 case "$SUBCMD" in
     status) cmd_status ;;
     ensure) cmd_ensure ;;
+    test)   cmd_test ;;
     -h|--help)
-        echo "Usage: tftp-server.sh {status|ensure} [--tftp-dir DIR]"
+        echo "Usage: tftp-server.sh {status|ensure|test} [--tftp-dir DIR]"
         exit 0
         ;;
-    "") echo "Usage: tftp-server.sh {status|ensure} [--tftp-dir DIR]" >&2; exit 1 ;;
-    *)  echo "tftp-server.sh: unknown subcommand: $SUBCMD (use status|ensure)" >&2; exit 1 ;;
+    "") echo "Usage: tftp-server.sh {status|ensure|test} [--tftp-dir DIR]" >&2; exit 1 ;;
+    *)  echo "tftp-server.sh: unknown subcommand: $SUBCMD (use status|ensure|test)" >&2; exit 1 ;;
 esac

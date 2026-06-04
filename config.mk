@@ -230,6 +230,8 @@ IMAGE       ?= adi-sc5xx-custom
 #   Related targets (work without TFTP_DIR, but use it to cross-check when set):
 #     make tftp-status   - TFTP server running? listen addr:port, served dir, config
 #     make tftp-ensure   - start an installed-but-stopped TFTP server (via sudo)
+#     make tftp-test     - list served files + verify one downloads over TFTP
+#                          (optional: TFTP_TEST_FILE=<name> TFTP_TEST_HOST=<ip>)
 #
 #   Examples:
 #     TFTP_DIR ?= /srv/tftp/adsp-sc598

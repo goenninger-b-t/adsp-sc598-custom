@@ -159,6 +159,7 @@ current settings.
 | `make tftp TFTP_DIR=...` | Stage `fitImage` / kernel / dtb / initrd into a TFTP root and write a `README.tftp-boot` with u-boot commands. |
 | `make tftp-status` | Report whether a TFTP server (tftpd-hpa / atftpd / dnsmasq) is running, the **address:port** it listens on, the directory it serves, and its **config file** path. With `TFTP_DIR` set, warns if the server serves a *different* dir than you stage into. |
 | `make tftp-ensure` | Ensure a TFTP server is running: no-op if one is up, else start an installed daemon (`sudo systemctl start`). Never auto-installs — prints install guidance if none is present. |
+| `make tftp-test` | List the files in the server's served directory (filesystem view — TFTP has no directory-listing opcode) and verify retrieval by fetching the smallest file over TFTP from loopback and byte-comparing it to the source. Optional `TFTP_TEST_FILE` / `TFTP_TEST_HOST`. |
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
 | `make list-apps` | List the configured apps and their kinds. |
@@ -298,6 +299,12 @@ address:port it listens on, which directory it serves, and its config file path
 than you staged into (the classic "staged files the board never sees" failure). `make tftp-ensure` starts an installed-but-stopped daemon
 (tftpd-hpa, atftpd, or a tftp-enabled dnsmasq) via `sudo`; it never auto-installs
 a package nor silently rewrites a server's config.
+
+`make tftp-test` proves the path end-to-end: it lists what's in the served
+directory (a filesystem view — TFTP has no directory-listing opcode, so there is
+no over-the-wire `ls`) and then actually fetches the smallest file over TFTP from
+loopback, byte-comparing it against the on-disk source. Target a specific file
+with `TFTP_TEST_FILE=fitImage`, or a non-loopback server with `TFTP_TEST_HOST=<ip>`.
 
 ---
 
