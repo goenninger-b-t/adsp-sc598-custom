@@ -157,6 +157,8 @@ current settings.
 | `make sdcard` | Decompress the `wic.gz` to `images/sdcard.img`. |
 | `make flash DEV=/dev/sdX` | `dd` `images/sdcard.img` to the device, with mount-point safety checks and a typed `YES` confirmation. |
 | `make tftp TFTP_DIR=...` | Stage `fitImage` / kernel / dtb / initrd into a TFTP root and write a `README.tftp-boot` with u-boot commands. |
+| `make tftp-status` | Report whether a TFTP server (tftpd-hpa / atftpd / dnsmasq) is running, the **address:port** it listens on, the directory it serves, and its **config file** path. With `TFTP_DIR` set, warns if the server serves a *different* dir than you stage into. |
+| `make tftp-ensure` | Ensure a TFTP server is running: no-op if one is up, else start an installed daemon (`sudo systemctl start`). Never auto-installs — prints install guidance if none is present. |
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
 | `make list-apps` | List the configured apps and their kinds. |
@@ -289,6 +291,13 @@ copy-paste u-boot commands, e.g.:
 => tftpboot 0x80000000 fitImage
 => bootm 0x80000000
 ```
+
+`make tftp-status` tells you whether a TFTP daemon is actually running, the
+address:port it listens on, which directory it serves, and its config file path
+— and, with `TFTP_DIR` set, warns when the server serves a *different* directory
+than you staged into (the classic "staged files the board never sees" failure). `make tftp-ensure` starts an installed-but-stopped daemon
+(tftpd-hpa, atftpd, or a tftp-enabled dnsmasq) via `sudo`; it never auto-installs
+a package nor silently rewrites a server's config.
 
 ---
 

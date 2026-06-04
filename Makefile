@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp publish new-app list-apps list-serial-port clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure publish new-app list-apps list-serial-port clean distclean shell update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -57,6 +57,8 @@ help:
 	@echo "  make flash DEV=/dev/sdX          dd images/sdcard.img to /dev/sdX (with safety prompt)"
 	@echo "  make tftp                        Copy fitImage/kernel/dtb/initrd to TFTP_DIR for net-boot"
 	@echo "                                   Required: TFTP_DIR=/srv/tftp/... (or set in config.mk)"
+	@echo "  make tftp-status                 Show TFTP server state: listen addr:port, served dir, config file"
+	@echo "  make tftp-ensure                 Ensure a TFTP server is running (starts an installed one; sudo)"
 	@echo "  make publish                     Stage versioned asset, [optionally TFTP-stage], upload GH release"
 	@echo "                                   Required: GH_REPO=owner/repo  GH_VERSION=X.Y.Z (strict SemVer 2.0.0, NO 'v' prefix)"
 	@echo "                                   Optional: GH_PROJECT GH_TARGET GH_NOTES_FILE GH_DRAFT=1 GH_PRERELEASE=1"
@@ -189,6 +191,18 @@ tftp:
 		--deploy-dir "$(BUILD_DIR)/tmp/deploy/images/$(MACHINE)" \
 		--images-dir "$(IMAGES_DIR)" \
 		--machine "$(MACHINE)"
+
+# Inspect / bring up the host TFTP daemon that serves the netboot files. TFTP_DIR
+# is optional here: when set, the script cross-checks it against the dir the
+# server actually serves and warns on a mismatch (the classic "staged files the
+# board never sees" footgun).
+tftp-status:
+	@bash "$(BIN_DIR)/tftp-server.sh" status \
+		$(if $(strip $(TFTP_DIR)),--tftp-dir "$(TFTP_DIR)")
+
+tftp-ensure:
+	@bash "$(BIN_DIR)/tftp-server.sh" ensure \
+		$(if $(strip $(TFTP_DIR)),--tftp-dir "$(TFTP_DIR)")
 
 # `make publish` also TFTP-stages when TFTP_DIR is non-empty. The $(if ...)
 # evaluates at Makefile parse time, so the prereq list itself becomes

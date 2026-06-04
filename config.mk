@@ -227,6 +227,10 @@ IMAGE       ?= adi-sc5xx-custom
 #   Default is empty. Leave it that way if you do not net-boot the board;
 #   `make publish` will then skip the TFTP step with a notice.
 #
+#   Related targets (work without TFTP_DIR, but use it to cross-check when set):
+#     make tftp-status   - TFTP server running? listen addr:port, served dir, config
+#     make tftp-ensure   - start an installed-but-stopped TFTP server (via sudo)
+#
 #   Examples:
 #     TFTP_DIR ?= /srv/tftp/adsp-sc598
 #     TFTP_DIR ?= /home/lab/tftp
