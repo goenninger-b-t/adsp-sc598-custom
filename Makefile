@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test sdk openocd gdb terminal publish new-app list-apps list-serial-ports clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb terminal publish new-app list-apps list-serial-ports clean distclean shell update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -61,6 +61,9 @@ help:
 	@echo "  make tftp-ensure                 Ensure a TFTP server is running (starts an installed one; sudo)"
 	@echo "  make tftp-test                   List served files + verify one downloads via TFTP (loopback)"
 	@echo "                                   Optional: TFTP_TEST_FILE=<name> TFTP_TEST_HOST=<ip>"
+	@echo "  make nfs-setup                   Export the built rootfs over NFS for NFS-root dev (sudo)"
+	@echo "                                   Required: NFS_DIR=/srv/nfs/...  (set in config.mk)"
+	@echo "  make nfs-status                  Show NFS export state + the exact u-boot NFS-root bootargs"
 	@echo "  make sdk                         Build the ADI SDK (populate_sdk) + install to SDK_INSTALL_DIR"
 	@echo "                                   Provides OpenOCD/GDB for 'make openocd'; SDK_SUDO=sudo for /opt"
 	@echo "  make openocd                     Start OpenOCD over ADI ICE JTAG (SC598); serves GDB on :3333"
@@ -223,6 +226,38 @@ tftp-ensure:
 tftp-test:
 	@TFTP_TEST_FILE="$(TFTP_TEST_FILE)" TFTP_TEST_HOST="$(TFTP_TEST_HOST)" \
 		bash "$(BIN_DIR)/tftp-server.sh" test
+
+# Export the built rootfs over NFS so the board can NFS-root mount it (fast dev
+# loop: edit under NFS_DIR, reboot, live). `nfs-setup` needs root -> NFS_SUDO; the
+# rootfs tarball is derived from the deploy dir. `nfs-status` (no root) shows the
+# export state and prints the exact u-boot bootargs (ip=.../nfsroot=..., NO root=).
+nfs-setup:
+	@if [ -z "$(NFS_DIR)" ]; then \
+		echo "ERROR: NFS_DIR is not set."; \
+		echo "       Set it in config.mk or pass on cmdline:"; \
+		echo "       make nfs-setup NFS_DIR=/srv/nfs/sc598-rootfs"; \
+		exit 1; \
+	fi
+	@$(NFS_SUDO) bash "$(BIN_DIR)/nfs-server.sh" setup \
+		--nfs-dir "$(NFS_DIR)" \
+		--deploy-dir "$(BUILD_DIR)/tmp/deploy/images/$(MACHINE)" \
+		--image "$(IMAGE)" \
+		--machine "$(MACHINE)" \
+		--nfs-vers "$(NFS_VERS)" \
+		$(if $(strip $(NFS_ALLOW)),--allow "$(NFS_ALLOW)") \
+		$(if $(strip $(HOST_IP)),--host-ip "$(HOST_IP)") \
+		$(if $(strip $(BOARD_IP)),--board-ip "$(BOARD_IP)")
+
+nfs-status:
+	@bash "$(BIN_DIR)/nfs-server.sh" status \
+		--nfs-dir "$(NFS_DIR)" \
+		--deploy-dir "$(BUILD_DIR)/tmp/deploy/images/$(MACHINE)" \
+		--image "$(IMAGE)" \
+		--machine "$(MACHINE)" \
+		--nfs-vers "$(NFS_VERS)" \
+		$(if $(strip $(NFS_ALLOW)),--allow "$(NFS_ALLOW)") \
+		$(if $(strip $(HOST_IP)),--host-ip "$(HOST_IP)") \
+		$(if $(strip $(BOARD_IP)),--board-ip "$(BOARD_IP)")
 
 # Build the ADI SDK (Yocto populate_sdk) for SDK_IMAGE and install it into
 # SDK_INSTALL_DIR via the self-extracting installer. Provides the cross-toolchain

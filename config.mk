@@ -262,6 +262,83 @@ TFTP_DIR    ?=
 
 
 # ============================================================================
+#  NFS root  (`make nfs-setup`, `make nfs-status`)
+# ============================================================================
+#
+# Boot the board against a rootfs that lives on THIS host over NFS - edit files,
+# reboot, the change is live, no reflash. `make nfs-setup` extracts the built
+# rootfs into NFS_DIR and exports it; the board's ADI initramfs greps `nfsroot=`
+# from the kernel cmdline, mounts it, and switch_root's into it (NO `root=`).
+# Pairs with the JTAG + TFTP fitImage boot. Typical flow:
+#
+#   make image                     # build the rootfs (...rootfs.tar.xz)
+#   make nfs-setup                 # install nfsd, extract + export NFS_DIR (sudo)
+#   make nfs-status                # exports live? + the exact u-boot bootargs
+#   # then in U-Boot: paste the printed `setenv bootargs ...` + tftp + bootm
+#
+# `make nfs-setup` needs root (installs nfs-kernel-server, writes /etc/exports,
+# extracts device nodes) and runs via NFS_SUDO.
+
+# ------- NFS_DIR ------------------------------------------------------------
+# Host directory the rootfs is extracted into AND exported over NFS. The board
+# mounts <HOST_IP>:<NFS_DIR>. Re-running `make nfs-setup` preserves your live
+# edits (extracts only if empty; `--force` re-extracts). Empty -> the nfs targets
+# error and tell you to set it. Machine-specific; keep your value local.
+#
+# Examples:
+#   NFS_DIR ?= /srv/nfs/sc598-rootfs
+#   NFS_DIR ?= /home/lab/nfs/sc598
+NFS_DIR     ?=
+
+# ------- BOARD_IP -----------------------------------------------------------
+# Static IP the board takes on the network, used in the kernel `ip=` bootarg
+# that brings up eth0 before the NFS mount. Must be free on your subnet and on
+# the same network as HOST_IP. Fills <board-ip> in the printed bootargs.
+#
+# Examples:
+#   BOARD_IP ?= 192.168.2.50
+BOARD_IP    ?=
+
+# ------- HOST_IP ------------------------------------------------------------
+# This host's IP on the board's network - the NFS server address the board
+# mounts from. Empty -> the scripts auto-detect the primary global IPv4. Set it
+# when you have several NICs and the wrong one is picked.
+#
+# Examples:
+#   HOST_IP ?= 192.168.2.180
+HOST_IP     ?=
+
+# ------- NFS_ALLOW ----------------------------------------------------------
+# Client spec allowed to mount the export (the /etc/exports left-hand side).
+# Empty -> derived as the /24 of HOST_IP (e.g. 192.168.2.0/24). Narrow it to a
+# single host or a different CIDR to restrict access.
+#
+# Examples:
+#   NFS_ALLOW ?= 192.168.2.0/24
+#   NFS_ALLOW ?= 192.168.2.50          # only this board
+NFS_ALLOW   ?=
+
+# ------- NFS_VERS -----------------------------------------------------------
+# NFS protocol version for the board's mount (the nfsroot= option in the printed
+# bootargs). 3 is simplest for an embedded root (no v4 pseudo-fs); the kernel has
+# CONFIG_NFS_V3=y. Use 4 only if you reconfigure the export accordingly.
+#
+# Examples:
+#   NFS_VERS ?= 3
+NFS_VERS    ?= 3
+
+# ------- NFS_SUDO -----------------------------------------------------------
+# Command prefix for the privileged half of `make nfs-setup` (apt install,
+# /etc/exports, exportfs, device-node extraction). Defaults to `sudo`; set empty
+# if you already run as root.
+#
+# Examples:
+#   NFS_SUDO ?= sudo
+#   make nfs-setup NFS_SUDO=
+NFS_SUDO    ?= sudo
+
+
+# ============================================================================
 #  ADI SDK (cross-toolchain + host tools)  (`make sdk`)
 # ============================================================================
 #
