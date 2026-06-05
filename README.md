@@ -68,7 +68,9 @@ Other boards in the same BSP family build from the identical flow — just chang
 .
 ├── Makefile                       # entry point — every workflow target
 ├── config.mk                      # all user-tunable settings (documented inline)
+├── config.mk.local                # worked-example machine settings (see "Example settings")
 ├── README.md                      # this file
+├── README.local.md                # worked-example runbook: 3-terminal JTAG -> NFS-root login
 ├── docs/                          # extended docs (app.yaml manifest reference)
 ├── LICENSE.md                     # MIT license
 ├── sbom.spdx.jsonld               # SPDX 3.0.1 SBOM of the harness (JSON-LD)
@@ -242,6 +244,38 @@ uses `?=`, so precedence is: **command line > environment > `config.mk`**.
 | `GH_VERSION` | *(empty, required for publish)* | Release tag — **strict SemVer 2.0.0, no `v` prefix**. |
 | `GH_TARGET` | `main` | Git ref the release tag anchors to. |
 | `GH_NOTES_FILE`, `GH_DRAFT`, `GH_PRERELEASE` | *(empty)* | Optional release-note file / draft / prerelease flags. |
+
+---
+
+## Example settings
+
+[`config.mk.local`](config.mk.local) and [`README.local.md`](README.local.md) are
+a committed **worked example**: the exact configuration and step-by-step commands
+that took a fresh **ADSP-SC598-SOM Rev E** (Carrier Rev D) from an empty board to
+a Linux login **over NFS** — U-Boot loaded via JTAG, kernel `fitImage` over TFTP,
+root filesystem over NFS.
+
+Unlike the machine-specific values in `config.mk` (left empty so a clone stays
+generic), these two files carry concrete paths and IPs on purpose, as a template
+to copy from. The settings used:
+
+| Variable | Value | Why |
+|---|---|---|
+| `SOM_REV` / `CRR_REV` | `E` / `D` | SOM Rev E moves the console-enable GPIO to an ADP5588 @ i2c2 `0x34`; `E` builds the matching device tree — the fix that makes the serial console work (default `D` leaves it dead). |
+| `TFTP_DIR` | `/mnt/nvme2n1/data02/tftp` | TFTP document root the board fetches `fitImage` from. |
+| `SDK_INSTALL_DIR` | `/mnt/nvme2n1/data02/adi-sdk/<distro>/<ver>` | User-writable SDK path (host OpenOCD/GDB) — installs without sudo. |
+| `NFS_DIR` | `/mnt/nvme2n1/data02/nfs/sc598-rootfs` | Host dir exported as the board's NFS root. |
+| `BOARD_IP` / `HOST_IP` | `192.168.2.50` / `192.168.2.180` | Board's static IP and this host's IP for the `ip=` / `nfsroot=` bootargs. |
+
+**Use case.** JTAG bring-up of a board whose OSPI/SD is empty: `make image`,
+`make tftp`, `make nfs-setup`, then the three-terminal JTAG sequence (`make
+openocd`, `make gdb`, `make terminal`) and a single `bootm` to a login —
+iterating on the rootfs live over NFS, no reflash. `README.local.md` is the full
+command-by-command runbook.
+
+To apply the settings, copy them into your `config.mk`, or `-include
+config.mk.local` from the `Makefile` (before `include config.mk`). Swap in your
+own paths, IPs, and board revision.
 
 ---
 

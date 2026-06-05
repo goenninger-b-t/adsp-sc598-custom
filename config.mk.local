@@ -1,0 +1,46 @@
+# ============================================================================
+#  config.mk.local - worked-example machine settings (SC598 SOM Rev E)
+# ============================================================================
+#
+# The machine-specific values (board revision, host paths, board/host IPs) that
+# took a fresh ADSP-SC598-SOM Rev E (Carrier Rev D) all the way to a Linux login
+# over NFS via JTAG + TFTP. Companion to README.local.md (the step-by-step
+# runbook); see the "Example settings" section of README.md.
+#
+# These are exactly the values that normally stay OUT of the committed config.mk
+# (they are host/board/network specific). They are committed HERE on purpose, as
+# a documented example you can copy from - NOT as defaults for everyone.
+#
+# TO USE - either:
+#   (a) copy the assignments below into your own config.mk (over the empty
+#       defaults), or
+#   (b) load this file as an override by adding to the Makefile, immediately
+#       BEFORE `include config.mk`:
+#           -include $(PROJECT_ROOT)/config.mk.local
+#       The `?=` here then wins and config.mk fills in everything else.
+#
+# Adjust EVERY value to your own hardware and network before relying on it.
+
+# --- Hardware revision: this board is a SOM Rev E on a Carrier Rev D ---------
+# Rev E moved the console-enable GPIO from the Rev-D MCP23018 @ i2c2 0x20 to an
+# ADP5588 @ 0x34. Building with SOM_REV=E selects the matching device tree -
+# that is what makes the serial console come alive. The BSP default is "D".
+SOM_REV ?= E
+CRR_REV ?= D
+
+# --- TFTP document root (where `make tftp` stages the fitImage) --------------
+# Must match the directory the host TFTP daemon serves (verify: make tftp-status).
+TFTP_DIR ?= /mnt/nvme2n1/data02/tftp
+
+# --- ADI SDK install dir (provides OpenOCD/GDB for `make openocd` / `make gdb`)
+# A user-writable path -> no sudo to install (vs the /opt default).
+SDK_INSTALL_DIR ?= /mnt/nvme2n1/data02/adi-sdk/$(DISTRO)/$(SDK_VERSION)
+
+# --- NFS root: the rootfs the board mounts (see `make nfs-setup`) ------------
+NFS_DIR ?= /mnt/nvme2n1/data02/nfs/sc598-rootfs
+
+# --- Network identity for the NFS-root bootargs (ip= / nfsroot=) -------------
+# BOARD_IP: a free static IP for the board on this subnet.
+# HOST_IP : this build host's IP - the TFTP + NFS server the board talks to.
+BOARD_IP ?= 192.168.2.50
+HOST_IP  ?= 192.168.2.180
