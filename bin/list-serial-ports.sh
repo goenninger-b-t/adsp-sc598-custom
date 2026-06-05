@@ -28,17 +28,24 @@
 #   in — they are listed unconditionally.
 #
 # USAGE
-#   ./list-serial-ports.sh
+#   ./list-serial-ports.sh            # bare: one device path per line (machine-readable)
+#   ./list-serial-ports.sh --long     # rich: + by-id name, USB chip/channel, JTAG tag
 #
-# OUTPUT
+# OUTPUT (bare)
 #   One device path per line, e.g.:
 #       /dev/ttyS0
 #       /dev/ttyS4
 #       /dev/ttyUSB0
 #   Prints nothing (and exits 0) if no serial ports are present.
 #
+# OUTPUT (--long)
+#   Per port: the device, its stable /dev/serial/by-id name (USB only), the USB
+#   chip + FTDI channel + vid:pid(serial), and - for an FT4232H channel A - a
+#   "likely JTAG" tag (that channel is what `make openocd` drives, not the console).
+#
 # PORTABILITY
-#   Linux only (relies on sysfs layout under /sys/class/tty). No root required.
+#   Linux only (sysfs under /sys/class/tty). --long uses udevadm when present and
+#   degrades gracefully without it. No root required.
 
 set -o nounset
 set -o pipefail
@@ -65,7 +72,79 @@ list_serial_ports() {
     done
 }
 
-list_serial_ports
+# describe_port DEV -- print a rich, human line (or two) for a serial device:
+# its USB chip + FTDI channel + vid:pid(serial), a stable /dev/serial/by-id name,
+# and a "likely JTAG" tag for an FT4232H channel A (the MPSSE channel ADI's
+# ice1000.cfg drives -- never the console). udevadm-based; degrades gracefully.
+describe_port() {
+    local dev="$1"
+    local props vid pid ser ifnum model chip chan tag byid real l line
+    # Only USB serial (ttyUSB*/ttyACM*) carries chip/channel/by-id info; print a
+    # platform UART (ttyS*) as a bare path - it is never the board's USB console.
+    case "$dev" in
+        */ttyUSB*|*/ttyACM*) ;;
+        *) printf '%s\n' "$dev"; return 0 ;;
+    esac
+    props=""
+    if command -v udevadm >/dev/null 2>&1; then
+        props="$(udevadm info -q property -n "$dev" 2>/dev/null || true)"
+    fi
+    getprop() { printf '%s\n' "$props" | sed -n "s/^$1=//p" | head -1; }
+    vid="$(getprop ID_VENDOR_ID)"
+    pid="$(getprop ID_MODEL_ID)"
+    ser="$(getprop ID_SERIAL_SHORT)"
+    ifnum="$(getprop ID_USB_INTERFACE_NUM)"
+    model="$(getprop ID_MODEL)"
+
+    chip=""; chan=""; tag=""
+    case "$vid:$pid" in
+        0403:6011) chip="FT4232H" ;;
+        0403:6010) chip="FT2232H" ;;
+        0403:6014) chip="FT232H" ;;
+        0403:6001) chip="FT232R" ;;
+        0403:6015) chip="FT-X" ;;
+        10c4:ea60) chip="CP2102N" ;;
+        10c4:ea70) chip="CP2105" ;;
+        :)         chip="" ;;            # non-USB (ttyS*) or no udev info
+        *)         chip="${model:-USB-serial}" ;;
+    esac
+    # FTDI dual/quad chips: map interface -> channel; MPSSE (JTAG) lives on ch.A.
+    if [ -n "$ifnum" ] && { [ "$chip" = FT4232H ] || [ "$chip" = FT2232H ]; }; then
+        case "$ifnum" in
+            00) chan="ch.A"; tag="   <- likely JTAG (make openocd) - NOT the console" ;;
+            01) chan="ch.B" ;;
+            02) chan="ch.C" ;;
+            03) chan="ch.D" ;;
+            *)  chan="if$ifnum" ;;
+        esac
+    fi
+    # Stable by-id symlink (USB only).
+    byid=""
+    if [ -d /dev/serial/by-id ]; then
+        real="$(readlink -f "$dev")"
+        for l in /dev/serial/by-id/*; do
+            [ -e "$l" ] || continue
+            if [ "$(readlink -f "$l")" = "$real" ]; then byid="$l"; break; fi
+        done
+    fi
+
+    line="$dev"
+    [ -n "$chip" ]    && line="$line  $chip"
+    [ -n "$chan" ]    && line="$line $chan"
+    [ -n "$ifnum" ]   && line="$line  if$ifnum"
+    [ -n "$vid$pid" ] && line="$line  $vid:$pid"
+    [ -n "$ser" ]     && line="$line ($ser)"
+    printf '%s%s\n' "$line" "$tag"
+    [ -n "$byid" ] && printf '      by-id: %s\n' "$byid"
+}
+
+# ---- mode dispatch --------------------------------------------------------
+case "${1:-}" in
+    -l|--long)  list_serial_ports | while IFS= read -r p; do describe_port "$p"; done ;;
+    -h|--help)  echo "Usage: list-serial-ports.sh [--long]" ;;
+    "")         list_serial_ports ;;
+    *)          echo "list-serial-ports.sh: unknown arg: $1" >&2; exit 1 ;;
+esac
 
 # NOTES
 #   - To find ports that are open RIGHT NOW (not merely present), pipe the

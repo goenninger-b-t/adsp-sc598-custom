@@ -68,16 +68,23 @@ if [ -z "$PORT" ]; then
 
     if [ "${#ports[@]}" -eq 0 ]; then
         echo "[terminal] ERROR: no serial port found. Connect the board's USB/UART cable," >&2
-        echo "[terminal]        or set SERIAL_PORT=/dev/ttyUSBx  (see: make list-serial-port)." >&2
+        echo "[terminal]        or set SERIAL_PORT=/dev/ttyUSBx  (see: make list-serial-ports)." >&2
         exit 1
     elif [ "${#ports[@]}" -eq 1 ]; then
         PORT="${ports[0]}"
         echo "[terminal] auto-detected serial port: $PORT"
     else
-        echo "[terminal] Multiple serial ports present — pick the SC598 console with SERIAL_PORT:" >&2
-        printf '[terminal]     %s\n' "${ports[@]}" >&2
-        echo "[terminal] (the board's FTDI bridge exposes several channels; the console is one" >&2
-        echo "[terminal]  specific one — try each.  e.g. make terminal SERIAL_PORT=/dev/ttyUSB0)" >&2
+        echo "[terminal] Multiple serial ports present — set SERIAL_PORT to the SC598 console:" >&2
+        echo "" >&2
+        listing=""
+        if [ -n "$LIST_SCRIPT" ] && [ -x "$LIST_SCRIPT" ]; then
+            listing="$(bash "$LIST_SCRIPT" --long 2>/dev/null || true)"
+        fi
+        if [ -n "$listing" ]; then printf '%s\n' "$listing" >&2; else printf '  %s\n' "${ports[@]}" >&2; fi
+        echo "" >&2
+        echo "[terminal] On the SC598-SOM-EZKIT the console is an FT4232H *UART* channel" >&2
+        echo "[terminal] (ch.B/C/D), not ch.A (JTAG). Prefer the stable by-id name, e.g.:" >&2
+        echo "[terminal]   make terminal SERIAL_PORT=/dev/serial/by-id/usb-FTDI_...-if0N-port0" >&2
         exit 1
     fi
 fi

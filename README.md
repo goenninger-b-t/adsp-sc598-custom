@@ -79,7 +79,7 @@ Other boards in the same BSP family build from the identical flow — just chang
 │   ├── sdk-install.sh             #   make sdk            — install the populate_sdk SDK
 │   ├── openocd-run.sh             #   make openocd        — start OpenOCD (ADI ICE JTAG)
 │   ├── publish-release.sh         #   make publish        — GitHub release upload
-│   ├── list-serial-ports.sh       #   make list-serial-port — present serial ports
+│   ├── list-serial-ports.sh       #   make list-serial-ports — present serial ports
 │   └── make-tooling-archive.sh    #   make update-tooling — self-extracting archive
 ├── overlays/                      # bitbake conf fragments applied to the build dir
 │   ├── local.conf.fragment        #   SD-card boot, debug-tweaks, create-spdx (SBOM)
@@ -188,7 +188,7 @@ current settings.
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
 | `make list-apps` | List the configured apps and their kinds. |
-| `make list-serial-port` | List host serial ports that are backed by real hardware. |
+| `make list-serial-ports` | List present serial ports with their stable `/dev/serial/by-id/` names, USB chip + FTDI channel, and a tag on the FT4232H channel A (the JTAG channel — not the console). Use it to pick `SERIAL_PORT` for `make terminal`. |
 | `make update-tooling` | Build the self-extracting tooling archive into `tooling/`. |
 | `make clean` | Remove `src/<BUILDDIR>/tmp/` (keeps sstate). |
 | `make distclean` | Also remove sstate-cache, downloads, the generated layer, and `tooling/`. |
@@ -326,10 +326,18 @@ configure`, or `make distclean` and rebuild.
 watch U-Boot and Linux boot, and "Terminal1" alongside `make openocd` / `make
 gdb`. It checks minicom is installed (and tells you how to install it otherwise),
 auto-detects the serial port (or set `SERIAL_PORT=/dev/ttyUSBx` — see `make
-list-serial-port`), and opens it at `SERIAL_BAUD` (default 115200, 8N1) via
+list-serial-ports`), and opens it at `SERIAL_BAUD` (default 115200, 8N1) via
 `minicom -D <port> -b <baud> -o`. Exit minicom with **Ctrl-A** then **X**. Serial
 access needs `dialout` membership (`sudo usermod -aG dialout $USER`, then re-login)
 or `make terminal TERMINAL_SUDO=sudo`.
+
+**Which port?** With several USB-serial adapters attached, `make list-serial-ports`
+shows each port's stable `/dev/serial/by-id/` name, USB chip and FTDI channel, and
+tags the FT4232H's **channel A** — the JTAG channel `make openocd` drives, which is
+*never* the console. The SC598 console is one of the FT4232H's other UART channels
+(ch.B/C/D); confirm by watching for boot output, then pin it with the stable name —
+`make terminal SERIAL_PORT=/dev/serial/by-id/usb-FTDI_…-if0N-port0` (immune to
+`ttyUSB` renumbering across reboots/replug).
 
 ### SD card
 `make image` produces a `wic.gz`; `make sdcard` decompresses it to

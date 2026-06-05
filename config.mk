@@ -467,7 +467,7 @@ GDB_EXTRA_ARGS     ?=
 # The serial device for the SC598 console. Empty -> `make terminal` auto-detects
 # it (a single USB-serial port is used directly; if several are present it lists
 # them and asks you to choose, since the board's FTDI bridge exposes multiple
-# channels). See `make list-serial-port`.
+# channels). See `make list-serial-ports`.
 #
 # Examples:
 #   SERIAL_PORT ?=

@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test sdk openocd gdb terminal publish new-app list-apps list-serial-port clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test sdk openocd gdb terminal publish new-app list-apps list-serial-ports clean distclean shell update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -75,7 +75,7 @@ help:
 	@echo "  make new-app NAME=foo [KIND=k]   Scaffold app skeleton"
 	@echo "                                   KIND: local-source | git | prebuilt-binary | prebuilt-tarball"
 	@echo "  make list-apps                   List configured apps"
-	@echo "  make list-serial-port            List host serial ports backed by real hardware"
+	@echo "  make list-serial-ports           List serial ports + by-id names, USB chip/channel (FT4232H JTAG tagged)"
 	@echo "  make clean                       Remove tmp/ (keep sstate)"
 	@echo "  make distclean                   Also remove sstate-cache and downloads"
 	@echo "  make shell                       Subshell with bitbake env sourced"
@@ -314,8 +314,8 @@ new-app:
 list-apps:
 	@python3 "$(BIN_DIR)/gen-apps.py" list --apps-dir "$(APPS_DIR)"
 
-list-serial-port:
-	@bash "$(BIN_DIR)/list-serial-ports.sh"
+list-serial-ports:
+	@bash "$(BIN_DIR)/list-serial-ports.sh" --long
 
 clean:
 	@echo "[clean] Removing $(BUILD_DIR)/tmp/"
