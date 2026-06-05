@@ -66,6 +66,7 @@ Other boards in the same BSP family build from the identical flow — just chang
 ├── Makefile                       # entry point — every workflow target
 ├── config.mk                      # all user-tunable settings (documented inline)
 ├── README.md                      # this file
+├── docs/                          # extended docs (app.yaml manifest reference)
 ├── LICENSE.md                     # MIT license
 ├── sbom.spdx.jsonld               # SPDX 3.0.1 SBOM of the harness (JSON-LD)
 ├── bin/                           # automation scripts the Makefile calls
@@ -100,7 +101,7 @@ Other boards in the same BSP family build from the identical flow — just chang
 ```
 
 Tracked in git: `Makefile`, `config.mk`, `bin/`, `overlays/`, `src/apps/`, and the
-root docs (`README.md`, `LICENSE.md`, `sbom.spdx.jsonld`). Everything else is
+docs (`README.md`, `docs/`, `LICENSE.md`, `sbom.spdx.jsonld`). Everything else is
 fetched, generated, or a build output — all re-creatable from the targets above.
 
 ---
@@ -272,6 +273,10 @@ rdepends: []               # runtime RDEPENDS:${PN}
 # optional: service: {unit, enable}, config: [{src,dst,mode}], files: [...],
 #           users: [...]   # systemd unit, /etc config, extra files, useradd
 ```
+
+**Full reference.** Every field, every kind, the build-system behaviour, and the
+bitbake each option generates — with a complete annotated example — is documented
+in **[`docs/app-yaml-reference.md`](docs/app-yaml-reference.md)**.
 
 ### Adding an app
 
