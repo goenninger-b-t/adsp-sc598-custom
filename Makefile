@@ -41,12 +41,13 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info terminal publish new-app list-apps list-serial-ports clean distclean shell distro-info update-tooling
+.PHONY: help host-setup init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info terminal publish new-app list-apps list-serial-ports clean distclean shell distro-info update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
 	@echo ""
 	@echo "Targets:"
+	@echo "  make host-setup                  Install host build prerequisites (apt/dnf/pacman/zypper); DRY_RUN=1 to preview"
 	@echo "  make init                        Download repo, repo init the ADI BSP manifest"
 	@echo "  make fetch                       repo sync the ADI BSP sources (auto-runs init first)"
 	@echo "  make configure                   Configure build dir, enable SD-card boot"
@@ -88,6 +89,12 @@ help:
 	@echo "  make update-tooling              Rebuild the self-extracting tooling archive into tooling/"
 	@echo ""
 	@echo "Settings: MACHINE=$(MACHINE) DISTRO=$(DISTRO) IMAGE=$(IMAGE) BUILDDIR=$(BUILDDIR)"
+
+# Install the host build prerequisites (Yocto build deps + this harness's tools)
+# for the detected distro - apt/dnf/pacman/zypper. Best-effort with a verify step;
+# uses sudo as needed. DRY_RUN=1 prints the package plan without installing.
+host-setup:
+	@bash "$(BIN_DIR)/host-setup.sh" $(if $(DRY_RUN),--dry-run)
 
 init:
 	@bash "$(BIN_DIR)/repo-init.sh" \

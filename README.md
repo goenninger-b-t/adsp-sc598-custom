@@ -76,6 +76,7 @@ Other boards in the same BSP family build from the identical flow — just chang
 ├── LICENSE.md                     # MIT license
 ├── sbom.spdx.jsonld               # SPDX 3.0.1 SBOM of the harness (JSON-LD)
 ├── bin/                           # automation scripts the Makefile calls
+│   ├── host-setup.sh              #   make host-setup     — install host prerequisites (apt/dnf/pacman/zypper)
 │   ├── repo-init.sh               #   make init           — fetch `repo`, repo init
 │   ├── configure-build.sh         #   make configure      — build dir + overlays
 │   ├── gen-apps.py                #   make apps/new-app/list-apps — app layer generator
@@ -117,6 +118,10 @@ fetched, generated, or a build output — all re-creatable from the targets abov
 
 ## Prerequisites
 
+> **Tip:** `make host-setup` installs everything below (the Yocto build deps + this
+> harness's tools) for the detected distro — apt/dnf/pacman/zypper. Run it once on a
+> fresh host; `make host-setup DRY_RUN=1` previews the package list first.
+
 - A 64-bit Linux host that can run Yocto **scarthgap** (Ubuntu 22.04/24.04,
   Debian, etc.) with the standard OpenEmbedded build dependencies installed
   (`gawk wget git diffstat unzip texinfo gcc build-essential chrpath socat cpio
@@ -146,6 +151,9 @@ fetched, generated, or a build output — all re-creatable from the targets abov
 ## Quick start
 
 ```sh
+# 0. One-time: install host build prerequisites (apt/dnf/pacman/zypper)
+make host-setup
+
 # 1. Bootstrap the BSP (first run only; make fetch will also init if needed)
 make init
 make fetch
@@ -179,6 +187,7 @@ current settings.
 
 | Target | What it does |
 |---|---|
+| `make host-setup` | Install the host build prerequisites (Yocto build deps + this harness's tools) for the detected distro — **apt** (Debian/Ubuntu), **dnf** (Fedora/RHEL/Rocky/Alma, +EPEL/CRB), **pacman** (Arch), **zypper** (openSUSE/SLES). Best-effort + a verify step; uses `sudo`. `make host-setup DRY_RUN=1` previews the package list. |
 | `make init` | Download the `repo` launcher (`REPO_TOOL_URL`) to `src/bin/repo`, then `repo init` against the ADI manifest. Creates `src/.repo/`. |
 | `make fetch` | `repo sync` the BSP into `src/sources/`. Auto-runs `init` first if `src/.repo` is missing. |
 | `make configure` | Initialise the bitbake build dir (`src/<BUILDDIR>`) and idempotently apply `overlays/` to `local.conf`/`bblayers.conf`. Requires `make fetch` first. |
