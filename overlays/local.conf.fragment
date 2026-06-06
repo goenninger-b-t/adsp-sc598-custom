@@ -13,7 +13,14 @@ ADSP_SC598_SDCARD = "1"
 # wic.gz comes for free from machine.conf for adi-sc5xx-custom.
 
 # Sane defaults for development images. Comment out for production.
-EXTRA_IMAGE_FEATURES:append = " debug-tweaks"
+#   debug-tweaks       - empty root password, allow root login, etc.
+#   ssh-server-openssh - GUARANTEE the OpenSSH server (openssh-sshd) is in the
+#                        image; its systemd sshd.socket is auto-enabled, so the
+#                        board listens on :22 from boot. The ADI base image
+#                        pulls openssh in transitively today, but stating the
+#                        feature here makes it explicit + robust to BSP bumps.
+#                        (Swap for ssh-server-dropbear for a smaller footprint.)
+EXTRA_IMAGE_FEATURES:append = " debug-tweaks ssh-server-openssh"
 
 # --- SPDX SBOM for the built image (the product SBOM) -----------------------
 # Emit an SPDX SBOM (ISO/IEC 5962; carries the NTIA minimum elements) for the

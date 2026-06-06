@@ -364,7 +364,8 @@ any previous block, so the build config always tracks `overlays/`):
 
 - **`overlays/local.conf.fragment`** — enables the SD-card boot path
   (`ADSP_SC598_SDCARD = "1"`) and adds `debug-tweaks` (empty root password etc.;
-  remove for production).
+  remove for production) plus `ssh-server-openssh` (guarantees the OpenSSH
+  server is installed and `sshd` is enabled on boot).
 - **`overlays/bblayers.conf.fragment`** — adds `meta-custom-apps` to `BBLAYERS`.
 
 When `SOM_REV` / `CRR_REV` are set, `make configure` also injects them into the
