@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info terminal publish new-app list-apps list-serial-ports clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info terminal publish new-app list-apps list-serial-ports clean distclean shell distro-info update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -84,6 +84,7 @@ help:
 	@echo "  make clean                       Remove tmp/ (keep sstate)"
 	@echo "  make distclean                   Also remove sstate-cache and downloads"
 	@echo "  make shell                       Subshell with bitbake env sourced"
+	@echo "  make distro-info                 Print the Yocto distro (name/version/codename) + build context + layers"
 	@echo "  make update-tooling              Rebuild the self-extracting tooling archive into tooling/"
 	@echo ""
 	@echo "Settings: MACHINE=$(MACHINE) DISTRO=$(DISTRO) IMAGE=$(IMAGE) BUILDDIR=$(BUILDDIR)"
@@ -380,6 +381,16 @@ shell:
 	@echo "[shell] Sourcing bitbake env. Type 'exit' to leave."
 	@cd "$(SRC_DIR)" && \
 		bash -c 'source ./setup-environment --builddir "$(BUILDDIR)" >/dev/null 2>&1 && exec "$${SHELL:-bash}"'
+
+# Print the Yocto distro identity (name / version / codename) + build context,
+# queried live from bitbake. Sources the env, then bin/distro-info.sh runs
+# `bitbake -e` and parses DISTRO_* + target vars (first run ~10-30s).
+distro-info:
+	@cd "$(SRC_DIR)" && \
+		source ./setup-environment --builddir "$(BUILDDIR)" >/dev/null && \
+		bash "$(BIN_DIR)/distro-info.sh" \
+			--machine "$(MACHINE)" \
+			--image "$(IMAGE)"
 
 # Package the project tooling (Makefile, config.mk, bin/, overlays/, example
 # app) into a self-extracting shell archive under tooling/. The bin/ script

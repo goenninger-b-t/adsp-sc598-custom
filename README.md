@@ -88,6 +88,7 @@ Other boards in the same BSP family build from the identical flow — just chang
 │   ├── board-info.sh              #   make board-info     — JTAG probe (IDCODEs, DAP, regs, silicon rev)
 │   ├── publish-release.sh         #   make publish        — GitHub release upload
 │   ├── list-serial-ports.sh       #   make list-serial-ports — present serial ports
+│   ├── distro-info.sh             #   make distro-info    — print distro name/version + build context
 │   └── make-tooling-archive.sh    #   make update-tooling — self-extracting archive
 ├── overlays/                      # bitbake conf fragments applied to the build dir
 │   ├── local.conf.fragment        #   SD-card boot, debug-tweaks, create-spdx (SBOM)
@@ -205,6 +206,7 @@ current settings.
 | `make clean` | Remove `src/<BUILDDIR>/tmp/` (keeps sstate). |
 | `make distclean` | Also remove sstate-cache, downloads, the generated layer, and `tooling/`. |
 | `make shell` | Drop into a subshell with the bitbake environment sourced. |
+| `make distro-info` | Print the configured Yocto **distro name / version / codename** (e.g. *Analog Devices Inc Reference Distro (glibc) 5.0.1 (scarthgap)*), plus build context (MACHINE, TARGET_SYS, tune, SDK + bitbake versions) and the layer list — queried live from `bitbake -e`. |
 
 Every variable can be overridden per invocation, e.g.
 `make image MACHINE=adsp-sc594-som-ezkit IMAGE=adsp-sc5xx-minimal-mmc`.
