@@ -68,18 +68,18 @@ proc bi_dap_clear {} {
     catch {set d [lindex [dap names] 0]}
     if {$d ne ""} { catch {$d dpreg 0 0x1e} }   ;# ABORT: clear STK*/WDERR/ORUNERR
 }
-# read one 32-bit MMR via read_memory (over the AXI mem-ap). The read is wrapped
-# in `capture` so a bus fault on an ABSENT peripheral is swallowed instead of
-# spewing "JTAG-DP STICKY ERROR" to the console; on failure we clear the sticky
-# error and return -1. (A global passes the value out of the capture script.)
+# read one 32-bit MMR via read_memory (over the AXI mem-ap). An ABSENT peripheral
+# bus-faults; OpenOCD's `capture` does NOT suppress the resulting LOG_ERROR (it
+# duplicates it to the console), so instead lower the log level across the read
+# (LOG_ERROR is gated by debug_level). On failure, clear the DP sticky error and
+# return -1. echo output is unaffected by debug_level.
 proc bi_word {t addr} {
     if {$t ne ""} { catch {targets $t} }
-    catch {unset ::_bi_r}
-    catch { capture { set ::_bi_r [read_memory $addr 32 1] } }
-    if {![info exists ::_bi_r]} { bi_dap_clear; return -1 }
-    set v [lindex $::_bi_r 0]
-    unset ::_bi_r
-    return $v
+    catch {debug_level -1}
+    set failed [catch { set r [read_memory $addr 32 1] }]
+    catch {debug_level 2}
+    if {$failed} { bi_dap_clear; return -1 }
+    return [lindex $r 0]
 }
 proc bi_show {t label addr} {
     set v [bi_word $t $addr]

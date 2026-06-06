@@ -465,9 +465,9 @@ memory-mapped ID/status registers — silicon revision (`CDU0_REVID`), boot mode
 **RAM map** — it probes each DDR controller (DMC0, DMC1), decodes the SDRAM
 geometry from every populated one, and reports each bank's base + size plus the
 total (e.g. one bank: `0x80000000`, 512 MB). An absent controller bus-faults
-harmlessly: the probe swallows the error (`capture`) and clears the DP sticky bit
-so the resume stays safe. It needs the adapter to itself, so don't run it while
-`make openocd` holds the link.
+harmlessly: the probe lowers the log level around the read (to hide the expected
+`JTAG-DP STICKY ERROR`) and clears the DP sticky bit so the resume stays safe. It
+needs the adapter to itself, so don't run it while `make openocd` holds the link.
 
 ---
 
