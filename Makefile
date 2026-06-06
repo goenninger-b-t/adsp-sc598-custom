@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb terminal publish new-app list-apps list-serial-ports clean distclean shell update-tooling
+.PHONY: help init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info terminal publish new-app list-apps list-serial-ports clean distclean shell update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -70,6 +70,8 @@ help:
 	@echo "                                   Optional: OPENOCD_ICE=ice1000|ice2000 OPENOCD_SUDO=sudo (see config.mk)"
 	@echo "  make gdb                         Attach the SDK's aarch64 GDB to a running 'make openocd' (:3333)"
 	@echo "                                   Optional: GDB_ELF=<u-boot.elf> GDB_HOST=<ip> (see config.mk)"
+	@echo "  make board-info                  Probe the board over JTAG: IDCODEs, DAP/ROM, regs, silicon rev, boot mode, RAM"
+	@echo "                                   Self-contained OpenOCD run; not while 'make openocd' holds the adapter"
 	@echo "  make terminal                    Open a minicom serial console to the SC598 (auto-detects port)"
 	@echo "                                   Optional: SERIAL_PORT=/dev/ttyUSBx SERIAL_BAUD=115200"
 	@echo "  make publish                     Stage versioned asset, [optionally TFTP-stage], upload GH release"
@@ -302,6 +304,19 @@ gdb:
 		--deploy-dir "$(BUILD_DIR)/tmp/deploy/images/$(MACHINE)" \
 		--machine "$(MACHINE)" \
 		$(if $(strip $(GDB_EXTRA_ARGS)),--extra "$(GDB_EXTRA_ARGS)")
+
+# Probe the connected SC598 over JTAG and print adapter, scan-chain IDCODEs,
+# CoreSight DAP/ROM table, target state, Cortex-A55 registers, and key SC598
+# ID/status registers (silicon rev, boot mode, DDR). Self-contained OpenOCD batch
+# run - do NOT run while `make openocd` holds the adapter. Uses the OPENOCD_* vars.
+board-info:
+	@bash "$(BIN_DIR)/board-info.sh" \
+		--openocd-bin "$(OPENOCD_BIN)" \
+		--scripts-dir "$(OPENOCD_SCRIPTS)" \
+		--ice "$(OPENOCD_ICE)" \
+		--target "$(OPENOCD_TARGET)" \
+		--machine "$(MACHINE)" \
+		$(if $(strip $(OPENOCD_SUDO)),--sudo "$(OPENOCD_SUDO)")
 
 # Open a minicom serial console to the board's USB/UART (the "Terminal1" you
 # watch boot on). Checks minicom is installed, auto-detects the port if

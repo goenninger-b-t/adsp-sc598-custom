@@ -51,7 +51,8 @@ Other boards in the same BSP family build from the identical flow — just chang
 - **JTAG bring-up & debug**: `make sdk` builds + installs the ADI SDK
   (cross-toolchain plus host OpenOCD/GDB) into a configurable path, and
   `make openocd` drives OpenOCD over an ICE-1000/ICE-2000 to load U-Boot via GDB
-  — straight from ADI's getting-started procedure.
+  — straight from ADI's getting-started procedure. `make board-info` probes the
+  board's JTAG/CoreSight identity and silicon revision in one shot.
 - **Safe flashing** (`make flash`) that refuses to clobber mounted system disks.
 - **GitHub release publishing** (`make publish`) with strict SemVer validation
   and an auto-generated, checksummed release note.
@@ -84,6 +85,7 @@ Other boards in the same BSP family build from the identical flow — just chang
 │   ├── nfs-server.sh              #   make nfs-{setup,status} — export rootfs over NFS / show bootargs
 │   ├── sdk-install.sh             #   make sdk            — install the populate_sdk SDK
 │   ├── openocd-run.sh             #   make openocd        — start OpenOCD (ADI ICE JTAG)
+│   ├── board-info.sh              #   make board-info     — JTAG probe (IDCODEs, DAP, regs, silicon rev)
 │   ├── publish-release.sh         #   make publish        — GitHub release upload
 │   ├── list-serial-ports.sh       #   make list-serial-ports — present serial ports
 │   └── make-tooling-archive.sh    #   make update-tooling — self-extracting archive
@@ -193,6 +195,7 @@ current settings.
 | `make sdk` | Build the ADI SDK (`bitbake <image> -c populate_sdk`) and run its installer into `SDK_INSTALL_DIR` — the cross-toolchain plus host OpenOCD/GDB used by `make openocd`. `SDK_SUDO=sudo` to install under `/opt`. |
 | `make openocd` | Start the ADI fork of OpenOCD over a JTAG emulator (ICE-1000/ICE-2000) to debug the SC598 and load U-Boot via GDB on `:3333`. OpenOCD ships in the ADI SDK; all paths/options are `config.mk` vars (`OPENOCD_*`, `SDK_*`). |
 | `make gdb` | Attach the SDK's aarch64 cross-GDB to the OpenOCD that `make openocd` is running (`target extended-remote :3333`) — run it in a **second terminal**. Auto-loads `GDB_ELF` or `u-boot-spl-<board>.elf` so you can `load` U-Boot into RAM. |
+| `make board-info` | Probe the connected board over JTAG in one shot (self-contained OpenOCD batch): scan-chain TAP IDCODEs, CoreSight DAP/ROM table, target state, Cortex-A55 registers, SC598 ID/status registers (silicon revision, boot mode, DDR controllers), and a decoded **RAM map** — it detects every populated DDR controller (DMC) live, reports each bank's base + size, and sums the total. Don't run while `make openocd` holds the adapter. |
 | `make terminal` | Open a **minicom** serial console to the SC598 over its USB/UART. Checks minicom is installed (prints how to install it otherwise), auto-detects the port (or `SERIAL_PORT=`), and connects at `SERIAL_BAUD` (default 115200). Exit with Ctrl-A X. |
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
@@ -452,6 +455,19 @@ into RAM and `c`. Everything is parameterised in `config.mk` — `OPENOCD_ICE`
 (ice1000/ice2000), `OPENOCD_BIN`, `OPENOCD_SCRIPTS`, `OPENOCD_TARGET`,
 `OPENOCD_GDB_PORT`, `OPENOCD_SUDO`, `SDK_VERSION`, and the `GDB_*` vars. The ICE
 is a libusb device, so without udev rules you'll need `OPENOCD_SUDO=sudo`.
+
+**`make board-info`** probes the board in one shot without GDB: it runs OpenOCD
+as a batch (init → query → shutdown) and prints the JTAG scan chain (TAP IDCODEs
+— the ADI JTAG controller `0x0282e0cb` and CoreSight DAP `0x4ba06477`), the
+CoreSight ROM table, the targets and Cortex-A55 registers, and SC598
+memory-mapped ID/status registers — silicon revision (`CDU0_REVID`), boot mode
+(`RCU_STAT` BMODE → JTAG/QSPI/UART/OSPI/eMMC), the DDR controllers, and a decoded
+**RAM map** — it probes each DDR controller (DMC0, DMC1), decodes the SDRAM
+geometry from every populated one, and reports each bank's base + size plus the
+total (e.g. one bank: `0x80000000`, 512 MB). An absent controller bus-faults
+harmlessly: the probe swallows the error (`capture`) and clears the DP sticky bit
+so the resume stays safe. It needs the adapter to itself, so don't run it while
+`make openocd` holds the link.
 
 ---
 
