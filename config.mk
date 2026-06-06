@@ -291,22 +291,39 @@ TFTP_DIR    ?=
 NFS_DIR     ?=
 
 # ------- BOARD_IP -----------------------------------------------------------
-# Static IP the board takes on the network, used in the kernel `ip=` bootarg
-# that brings up eth0 before the NFS mount. Must be free on your subnet and on
-# the same network as HOST_IP. Fills <board-ip> in the printed bootargs.
+# The board's static IP. SHARED by the NFS targets and `make boot`:
+#   - `make boot` runs `setenv ipaddr <BOARD_IP>` at the U-Boot prompt, and
+#   - it fills the client field of the kernel `ip=` bootarg that brings up the
+#     interface before the NFS mount.
+# Must be free on your subnet and on the same network as HOST_IP.
 #
 # Examples:
 #   BOARD_IP ?= 192.168.2.50
 BOARD_IP    ?=
 
 # ------- HOST_IP ------------------------------------------------------------
-# This host's IP on the board's network - the NFS server address the board
-# mounts from. Empty -> the scripts auto-detect the primary global IPv4. Set it
-# when you have several NICs and the wrong one is picked.
+# This host's IP on the board's network. SHARED: it is the TFTP `serverip`
+# `make boot` sets in U-Boot AND the NFS server the board mounts from. Empty ->
+# the scripts auto-detect the primary global IPv4; set it when several NICs make
+# the wrong one get picked.
 #
 # Examples:
 #   HOST_IP ?= 192.168.2.180
 HOST_IP     ?=
+
+# ------- BOARD_NETMASK / BOARD_GATEWAY / BOARD_HOSTNAME ---------------------
+# The remaining kernel `ip=` fields (`ip=<client>:<server>:<gw>:<netmask>:
+# <hostname>:<dev>:off`), shared by `make boot` and the bootargs `make nfs-status`
+# prints. BOARD_GATEWAY is optional (empty -> the "::" the board boots with
+# today). BOARD_HOSTNAME is the name the kernel assigns over the cmdline.
+#
+# Examples:
+#   BOARD_NETMASK  ?= 255.255.255.0
+#   BOARD_GATEWAY  ?= 192.168.2.1
+#   BOARD_HOSTNAME ?= sc598
+BOARD_NETMASK  ?= 255.255.255.0
+BOARD_GATEWAY  ?=
+BOARD_HOSTNAME ?= sc598
 
 # ------- NFS_ALLOW ----------------------------------------------------------
 # Client spec allowed to mount the export (the /etc/exports left-hand side).
@@ -576,6 +593,182 @@ TERMINAL_SUDO      ?=
 #   MINICOM_ARGS ?=
 #   make terminal MINICOM_ARGS='-C boot.log'
 MINICOM_ARGS       ?=
+
+
+# ============================================================================
+#  Automated boot to Linux  (`make boot`)
+# ============================================================================
+#
+# `make boot` collapses the three-terminal ADI JTAG bring-up (make openocd /
+# make gdb / make terminal) into ONE hands-free command that drives the board to
+# a Linux login prompt:
+#
+#   1. starts OpenOCD over the ICE (or reuses one already on OPENOCD_GDB_PORT);
+#   2. GDB-loads U-Boot SPL, runs it (DDR init, then it spins in JTAG/no-boot
+#      mode), then loads U-Boot proper and runs it - proper's board_init_r
+#      asserts the Rev-E uart0-en (ADP5588 @ i2c2 0x34) so the console wakes;
+#   3. owns the serial console (what you would watch in `make terminal`),
+#      interrupts autoboot, sets up networking, ping-gates the link, tftp's the
+#      fitImage into DDR and bootm's it;
+#   4. waits for the `login:` prompt = success, then (by default) hands the live
+#      console to minicom so you can log in.
+#
+# It REUSES the OPENOCD_*, GDB_*, SERIAL_* and BOARD_IP/HOST_IP/BOARD_NETMASK/
+# BOARD_GATEWAY/BOARD_HOSTNAME/NFS_* settings above - no duplicate IP knobs.
+#
+# Prerequisites (make boot preflights each and names the fix if missing):
+#   - a built image           : make image
+#   - the fitImage staged      : make tftp        (sets up TFTP_DIR/fitImage)
+#   - a running TFTP server    : make tftp-ensure  (sudo; serves udp/69)
+#   - for METHOD=nfs, a rootfs : make nfs-setup     (exports NFS_DIR)
+#   - board POWER-CYCLED, BMODE in JTAG/no-boot: the ICE can't reset a running
+#     core, so re-running over a live Linux fails the attach. make boot detects
+#     this and tells you to power-cycle (it cannot do so itself).
+#
+# Typical use (everything else taken from this file):
+#   make boot
+#   make boot BOOT_METHOD=ramdisk          # kernel smoke test, no NFS
+#   make boot SERIAL_PORT=/dev/ttyUSB4     # pin the console, skip auto-probe
+
+# ------- BOOT_METHOD --------------------------------------------------------
+# How the rootfs is provided once the kernel (from the tftp'd fitImage) boots:
+#   nfs       Mount the rootfs `make nfs-setup` exported over NFS -> a full
+#             systemd login. The verified path; reaches `adsp-sc598-... login:`.
+#   ramdisk   Boot only the fitImage's embedded initramfs -> a busybox shell
+#             (NOT a full login:). Fewest prerequisites (no NFS). Good for a
+#             quick "does the kernel come up" check.
+#
+# Examples:
+#   BOOT_METHOD ?= nfs
+#   make boot BOOT_METHOD=ramdisk
+BOOT_METHOD        ?= nfs
+
+# ------- BOOT_NETDEV --------------------------------------------------------
+# The kernel network interface in the `ip=` bootarg (device field). eth0 on the
+# SC598 SOM-EZKIT.
+#
+# Examples:
+#   BOOT_NETDEV ?= eth0
+BOOT_NETDEV        ?= eth0
+
+# ------- BOOT_CONSOLE / BOOT_EARLYCON / BOOT_MEM ----------------------------
+# Kernel cmdline console / earlycon / mem for the SC598. These are board facts
+# you rarely change: the console UART is ttySC0 @ 115200, the early console is
+# the ADI UART at 0x31003000, and Linux is given 224 MB (mem=224M, RAM
+# 0x80000000-0x8E000000) with the rest reserved for the SHARC cores.
+#
+# Examples:
+#   BOOT_CONSOLE  ?= ttySC0,115200
+#   BOOT_EARLYCON ?= adi_uart,0x31003000
+#   BOOT_MEM      ?= 224M
+BOOT_CONSOLE       ?= ttySC0,115200
+BOOT_EARLYCON      ?= adi_uart,0x31003000
+BOOT_MEM           ?= 224M
+
+# ------- BOOT_FITIMAGE_ADDR / BOOT_FITIMAGE_NAME ----------------------------
+# DDR scratch the fitImage is tftp'd to before `bootm`, and its filename on the
+# TFTP server. 0x90000000 sits ABOVE the kernel's mem=224M window
+# (0x80000000-0x8E000000) so `bootm` can unpack the FIT without the kernel
+# clobbering the source. (Do NOT use 0x80000000 - that is inside the kernel RAM.)
+#
+# Examples:
+#   BOOT_FITIMAGE_ADDR ?= 0x90000000
+#   BOOT_FITIMAGE_NAME ?= fitImage
+BOOT_FITIMAGE_ADDR ?= 0x90000000
+BOOT_FITIMAGE_NAME ?= fitImage
+
+# ------- BOOT_SPL_ELF / BOOT_PROPER_ELF -------------------------------------
+# The two U-Boot stages GDB loads over JTAG. Empty -> auto-found in the deploy
+# dir as u-boot-spl-<board>.elf and u-boot-proper-<board>.elf (the names the BSP
+# produces). Override only to load a U-Boot from elsewhere.
+#
+# Examples:
+#   BOOT_SPL_ELF    ?=
+#   BOOT_PROPER_ELF ?=
+BOOT_SPL_ELF       ?=
+BOOT_PROPER_ELF    ?=
+
+# ------- BOOT_SPL_SPIN_SYM --------------------------------------------------
+# GDB breakpoint used to stop SPL AFTER it has initialised DDR but before the
+# JTAG/no-boot spin, which is the safe moment to JTAG-load U-Boot proper (load
+# it too early and proper's image fails to write because DDR is not up yet).
+# board_boot_order is where the manual Ctrl-C reliably landed. Set EMPTY to fall
+# back to a timed run-then-interrupt (BOOT_SPL_RUN_SECS).
+#
+# Examples:
+#   BOOT_SPL_SPIN_SYM ?= board_boot_order
+#   make boot BOOT_SPL_SPIN_SYM=          # timed interrupt instead
+BOOT_SPL_SPIN_SYM  ?= board_boot_order
+
+# ------- BOOT_SPL_RUN_SECS --------------------------------------------------
+# Seconds to let SPL run before interrupting it, used only when BOOT_SPL_SPIN_SYM
+# is empty (the timed fallback). Long enough to finish DDR init.
+#
+# Examples:
+#   BOOT_SPL_RUN_SECS ?= 4
+BOOT_SPL_RUN_SECS  ?= 4
+
+# ------- BOOT_GDB_RESET -----------------------------------------------------
+# Non-empty/1 -> issue `monitor reset halt` before loading SPL, for a clean
+# start. Set to 0 if your setup needs the boot-ROM to idle first (then a
+# power-cycle on BMODE=JTAG is the reset instead).
+#
+# Examples:
+#   BOOT_GDB_RESET ?= 1
+BOOT_GDB_RESET     ?= 1
+
+# ------- BOOT_UBOOT_PROMPT / BOOT_UBOOT_TIMEOUT -----------------------------
+# The U-Boot prompt string to wait for, and how long (seconds) to allow for the
+# JTAG load + reaching that prompt.
+#
+# Examples:
+#   BOOT_UBOOT_PROMPT  ?= "=> "
+#   BOOT_UBOOT_TIMEOUT ?= 90
+BOOT_UBOOT_PROMPT  ?= =>
+BOOT_UBOOT_TIMEOUT ?= 90
+
+# ------- BOOT_LOGIN_REGEX / BOOT_LINUX_TIMEOUT ------------------------------
+# Regex marking success (the login prompt) and how long (seconds) to wait for it
+# after `bootm`. The default matches both `login:` and `<host> login:`.
+#
+# Examples:
+#   BOOT_LOGIN_REGEX  ?= login:
+#   BOOT_LINUX_TIMEOUT ?= 180
+BOOT_LOGIN_REGEX   ?= login:
+BOOT_LINUX_TIMEOUT ?= 180
+
+# ------- BOOT_AUTO_LOGIN / BOOT_USER / BOOT_PASS ----------------------------
+# If BOOT_AUTO_LOGIN is non-empty, `make boot` types BOOT_USER (and BOOT_PASS if
+# set) at the login prompt. On the stock ADI dev image the user is `root` with
+# password `adi`. Leave AUTO_LOGIN empty to just stop at the prompt.
+#
+# Examples:
+#   BOOT_AUTO_LOGIN ?=
+#   make boot BOOT_AUTO_LOGIN=1 BOOT_USER=root BOOT_PASS=adi
+BOOT_AUTO_LOGIN    ?=
+BOOT_USER          ?= root
+BOOT_PASS          ?= adi
+
+# ------- BOOT_INTERACTIVE ---------------------------------------------------
+# After login is reached: non-empty/1 -> release JTAG and hand the live console
+# to minicom (like `make terminal`) so you can use the shell immediately; set to
+# 0 to print success and exit (the board keeps running; attach later with
+# `make terminal`). Set 0 for unattended/CI use.
+#
+# Examples:
+#   BOOT_INTERACTIVE ?= 1
+#   make boot BOOT_INTERACTIVE=0
+BOOT_INTERACTIVE   ?= 1
+
+# ------- BOOT_AUTO_STAGE ----------------------------------------------------
+# Non-empty -> if the fitImage is not staged in TFTP_DIR, run the (non-sudo)
+# `make tftp` staging automatically during preflight. The privileged steps
+# (tftp-ensure, nfs-setup) are never auto-run.
+#
+# Examples:
+#   BOOT_AUTO_STAGE ?=
+#   make boot BOOT_AUTO_STAGE=1
+BOOT_AUTO_STAGE    ?=
 
 
 # ============================================================================

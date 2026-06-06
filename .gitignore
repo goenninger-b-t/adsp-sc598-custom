@@ -46,6 +46,10 @@
 /images/
 /tooling/
 
+# --- Python bytecode (bin/*.py, e.g. make boot's engine) --------------------
+__pycache__/
+*.pyc
+
 # --- editor / OS noise ------------------------------------------------------
 *~
 *.sw?

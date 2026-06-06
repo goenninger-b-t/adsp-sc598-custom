@@ -33,10 +33,12 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 SUB="${1:-}"; shift || true
 
 NFS_DIR=""; ROOTFS_TAR=""; DEPLOY_DIR=""; IMAGE=""; MACHINE=""
-ALLOW=""; HOST_IP=""; BOARD_IP=""; NFS_VERS="3"; FORCE=""
+ALLOW=""; HOST_IP=""; BOARD_IP=""; NFS_VERS="3"; FORCE=""; NETMASK=""; HOSTNAME=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -48,6 +50,8 @@ while [[ $# -gt 0 ]]; do
         --allow)       ALLOW="$2";      shift 2 ;;
         --host-ip)     HOST_IP="$2";    shift 2 ;;
         --board-ip)    BOARD_IP="$2";   shift 2 ;;
+        --netmask)     NETMASK="$2";    shift 2 ;;
+        --hostname)    HOSTNAME="$2";   shift 2 ;;
         --nfs-vers)    NFS_VERS="$2";   shift 2 ;;
         --force)       FORCE=1;         shift ;;
         *) echo "nfs-server.sh: unknown arg: $1" >&2; exit 1 ;;
@@ -75,19 +79,16 @@ nfs_unit(){
     done
     echo "nfs-kernel-server"
 }
-# the ready-to-paste U-Boot bootargs for an NFS root (no root=)
-bootargs_line(){
-    local d="$1" b="${BOARD_IP:-<board-ip>}" h="${HOST_IP:-<host-ip>}"
-    echo "setenv bootargs console=ttySC0,115200 earlycon=adi_uart,0x31003000 mem=224M ip=${b}:${h}::255.255.255.0:sc598:eth0:off nfsroot=${h}:${d},nfsvers=${NFS_VERS},tcp"
-}
-print_uboot(){
-    local d="$1"
-    echo "    $(bootargs_line "$d")"
-    echo "    tftp 0x90000000 fitImage"
-    echo "    bootm 0x90000000"
-}
-
 [ -n "$HOST_IP" ] || HOST_IP="$(detect_host_ip)"
+
+# The bootargs + tftp/bootm lines are built by the shared emitter so that
+# `make nfs-status` and `make boot` can never drift apart. Export what it reads
+# (an empty NETMASK/HOSTNAME falls back to the emitter's defaults), force the
+# NFS bootargs shape, then source it. bootcmds_print_uboot reads NFS_DIR live.
+export BOARD_IP HOST_IP NFS_DIR NFS_VERS
+export BOARD_NETMASK="$NETMASK" BOARD_HOSTNAME="$HOSTNAME" BOOT_METHOD=nfs
+# shellcheck source=bin/lib/bootcmds.sh
+source "$SCRIPT_DIR/lib/bootcmds.sh"
 
 case "$SUB" in
   setup)
@@ -127,7 +128,7 @@ case "$SUB" in
     log "active exports:"; exportfs -v 2>/dev/null | sed 's/^/    /' || true
     echo
     log "DONE — boot the board with (NO root=):"
-    print_uboot "$NFS_DIR"
+    bootcmds_print_uboot
     ;;
   status)
     UNIT="$(nfs_unit)"
@@ -154,7 +155,7 @@ case "$SUB" in
     fi
     echo
     log "U-Boot bootargs for this NFS root (no root=):"
-    print_uboot "${NFS_DIR:-<NFS_DIR>}"
+    bootcmds_print_uboot
     [ -n "${BOARD_IP:-}" ] || log "note: set BOARD_IP in config.mk to fill in <board-ip>"
     ;;
   ""|-h|--help)

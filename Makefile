@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help host-setup init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info terminal publish new-app list-apps list-serial-ports clean distclean shell distro-info update-tooling
+.PHONY: help host-setup init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info terminal boot publish new-app list-apps list-serial-ports clean distclean shell distro-info update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -75,6 +75,9 @@ help:
 	@echo "                                   Self-contained OpenOCD run; not while 'make openocd' holds the adapter"
 	@echo "  make terminal                    Open a minicom serial console to the SC598 (auto-detects port)"
 	@echo "                                   Optional: SERIAL_PORT=/dev/ttyUSBx SERIAL_BAUD=115200"
+	@echo "  make boot                        Drive the board to a Linux login over JTAG, hands-free (openocd+gdb+console)"
+	@echo "                                   Prereqs: make image; make tftp; make tftp-ensure; (nfs) make nfs-setup"
+	@echo "                                   Optional: BOOT_METHOD=nfs|ramdisk SERIAL_PORT=... BOOT_INTERACTIVE=0 (see config.mk)"
 	@echo "  make publish                     Stage versioned asset, [optionally TFTP-stage], upload GH release"
 	@echo "                                   Required: GH_REPO=owner/repo  GH_VERSION=X.Y.Z (strict SemVer 2.0.0, NO 'v' prefix)"
 	@echo "                                   Optional: GH_PROJECT GH_TARGET GH_NOTES_FILE GH_DRAFT=1 GH_PRERELEASE=1"
@@ -256,7 +259,9 @@ nfs-setup:
 		--nfs-vers "$(NFS_VERS)" \
 		$(if $(strip $(NFS_ALLOW)),--allow "$(NFS_ALLOW)") \
 		$(if $(strip $(HOST_IP)),--host-ip "$(HOST_IP)") \
-		$(if $(strip $(BOARD_IP)),--board-ip "$(BOARD_IP)")
+		$(if $(strip $(BOARD_IP)),--board-ip "$(BOARD_IP)") \
+		$(if $(strip $(BOARD_NETMASK)),--netmask "$(BOARD_NETMASK)") \
+		$(if $(strip $(BOARD_HOSTNAME)),--hostname "$(BOARD_HOSTNAME)")
 
 nfs-status:
 	@bash "$(BIN_DIR)/nfs-server.sh" status \
@@ -267,7 +272,9 @@ nfs-status:
 		--nfs-vers "$(NFS_VERS)" \
 		$(if $(strip $(NFS_ALLOW)),--allow "$(NFS_ALLOW)") \
 		$(if $(strip $(HOST_IP)),--host-ip "$(HOST_IP)") \
-		$(if $(strip $(BOARD_IP)),--board-ip "$(BOARD_IP)")
+		$(if $(strip $(BOARD_IP)),--board-ip "$(BOARD_IP)") \
+		$(if $(strip $(BOARD_NETMASK)),--netmask "$(BOARD_NETMASK)") \
+		$(if $(strip $(BOARD_HOSTNAME)),--hostname "$(BOARD_HOSTNAME)")
 
 # Build the ADI SDK (Yocto populate_sdk) for SDK_IMAGE and install it into
 # SDK_INSTALL_DIR via the self-extracting installer. Provides the cross-toolchain
@@ -336,6 +343,60 @@ terminal:
 		--list-script "$(BIN_DIR)/list-serial-ports.sh" \
 		$(if $(strip $(TERMINAL_SUDO)),--sudo "$(TERMINAL_SUDO)") \
 		$(if $(strip $(MINICOM_ARGS)),--extra "$(MINICOM_ARGS)")
+
+# Drive the board all the way to a Linux login over JTAG, hands-free: start
+# OpenOCD, GDB-load SPL then U-Boot proper, then own the serial console to set up
+# networking, ping-gate, tftp the fitImage and bootm, and wait for `login:`.
+# Collapses `make openocd` + `make gdb` + `make terminal` into one command.
+# Reuses the OPENOCD_*/GDB_*/SERIAL_* vars and the BOOT_*/BOARD_*/NFS_* settings
+# from config.mk. Prereqs (preflighted, with the fix named): make image; make
+# tftp; make tftp-ensure; and for BOOT_METHOD=nfs, make nfs-setup.
+boot:
+	@bash "$(BIN_DIR)/boot-run.sh" \
+		--bin-dir "$(BIN_DIR)" \
+		--deploy-dir "$(BUILD_DIR)/tmp/deploy/images/$(MACHINE)" \
+		--images-dir "$(IMAGES_DIR)" \
+		--machine "$(MACHINE)" \
+		--openocd-bin "$(OPENOCD_BIN)" \
+		--openocd-scripts "$(OPENOCD_SCRIPTS)" \
+		--ice "$(OPENOCD_ICE)" \
+		--target "$(OPENOCD_TARGET)" \
+		--gdb-port "$(OPENOCD_GDB_PORT)" \
+		--gdb-bin "$(GDB_BIN)" \
+		--gdb-host "$(GDB_HOST)" \
+		--spl-elf "$(BOOT_SPL_ELF)" \
+		--proper-elf "$(BOOT_PROPER_ELF)" \
+		--spl-spin-sym "$(BOOT_SPL_SPIN_SYM)" \
+		--spl-run-secs "$(BOOT_SPL_RUN_SECS)" \
+		--gdb-reset "$(BOOT_GDB_RESET)" \
+		--serial-port "$(SERIAL_PORT)" \
+		--serial-baud "$(SERIAL_BAUD)" \
+		--method "$(BOOT_METHOD)" \
+		--board-ip "$(BOARD_IP)" \
+		--host-ip "$(HOST_IP)" \
+		--netmask "$(BOARD_NETMASK)" \
+		--gateway "$(BOARD_GATEWAY)" \
+		--hostname "$(BOARD_HOSTNAME)" \
+		--netdev "$(BOOT_NETDEV)" \
+		--nfs-dir "$(NFS_DIR)" \
+		--nfs-vers "$(NFS_VERS)" \
+		--console "$(BOOT_CONSOLE)" \
+		--earlycon "$(BOOT_EARLYCON)" \
+		--mem "$(BOOT_MEM)" \
+		--fit-addr "$(BOOT_FITIMAGE_ADDR)" \
+		--fit-name "$(BOOT_FITIMAGE_NAME)" \
+		--uboot-prompt "$(BOOT_UBOOT_PROMPT) " \
+		--uboot-timeout "$(BOOT_UBOOT_TIMEOUT)" \
+		--login-regex "$(BOOT_LOGIN_REGEX)" \
+		--linux-timeout "$(BOOT_LINUX_TIMEOUT)" \
+		--auto-login "$(BOOT_AUTO_LOGIN)" \
+		--user "$(BOOT_USER)" \
+		--password "$(BOOT_PASS)" \
+		--interactive "$(BOOT_INTERACTIVE)" \
+		--tftp-dir "$(TFTP_DIR)" \
+		$(if $(strip $(OPENOCD_SUDO)),--openocd-sudo "$(OPENOCD_SUDO)") \
+		$(if $(strip $(TERMINAL_SUDO)),--minicom-sudo "$(TERMINAL_SUDO)") \
+		$(if $(strip $(BOOT_AUTO_STAGE)),--auto-stage)
 
 # `make publish` also TFTP-stages when TFTP_DIR is non-empty. The $(if ...)
 # evaluates at Makefile parse time, so the prereq list itself becomes

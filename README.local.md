@@ -8,6 +8,27 @@ the root filesystem mounted over **NFS** from this build host.
 > Settings: [`config.mk.local`](config.mk.local). Overview: the
 > [Example settings](README.md#example-settings) section of the main README.
 
+## TL;DR — one command
+
+Sections 2–4 below (JTAG load → U-Boot networking → NFS boot → login) are now
+automated by a single target:
+
+```sh
+make image && make tftp && make tftp-ensure && make nfs-setup   # host prep (once)
+make boot                                                       # JTAG → U-Boot → NFS → login
+```
+
+`make boot` starts OpenOCD, GDB-loads SPL then U-Boot proper (the two-stage
+JTAG load), auto-probes the USB-serial console, interrupts autoboot, types the
+network + `tftp fitImage` + `bootm` sequence (the very line `make nfs-status`
+prints), ping-gates the link, waits for `login:`, then hands you an interactive
+minicom session. `BOOT_METHOD=ramdisk` boots the fitImage's initramfs instead of
+NFS; `BOOT_INTERACTIVE=0` stops at the prompt without minicom. The session is
+logged to `images/boot.log` and the commands it sends to `images/boot-cmds.txt`.
+
+The manual three-terminal walkthrough below is what `make boot` does under the
+hood — keep it for when a step needs debugging.
+
 ## My settings
 
 These live in [`config.mk.local`](config.mk.local). Either copy the assignments

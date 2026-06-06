@@ -86,11 +86,17 @@ Other boards in the same BSP family build from the identical flow — just chang
 │   ├── nfs-server.sh              #   make nfs-{setup,status} — export rootfs over NFS / show bootargs
 │   ├── sdk-install.sh             #   make sdk            — install the populate_sdk SDK
 │   ├── openocd-run.sh             #   make openocd        — start OpenOCD (ADI ICE JTAG)
+│   ├── gdb-run.sh                 #   make gdb            — attach SDK aarch64 GDB to OpenOCD (:3333)
 │   ├── board-info.sh              #   make board-info     — JTAG probe (IDCODEs, DAP, regs, silicon rev)
+│   ├── terminal-run.sh            #   make terminal       — minicom serial console to the SC598
+│   ├── boot-run.sh                #   make boot           — drive JTAG -> U-Boot -> Linux login (front end)
+│   ├── boot-drive.py              #   make boot           — orchestration engine (OpenOCD + GDB + serial)
 │   ├── publish-release.sh         #   make publish        — GitHub release upload
 │   ├── list-serial-ports.sh       #   make list-serial-ports — present serial ports
 │   ├── distro-info.sh             #   make distro-info    — print distro name/version + build context
-│   └── make-tooling-archive.sh    #   make update-tooling — self-extracting archive
+│   ├── make-tooling-archive.sh    #   make update-tooling — self-extracting archive
+│   └── lib/
+│       └── bootcmds.sh            #   shared U-Boot bootargs/boot-command emitter (boot + nfs-status)
 ├── overlays/                      # bitbake conf fragments applied to the build dir
 │   ├── local.conf.fragment        #   SD-card boot, debug-tweaks, create-spdx (SBOM)
 │   └── bblayers.conf.fragment     #   adds the generated meta-custom-apps layer
@@ -207,6 +213,7 @@ current settings.
 | `make gdb` | Attach the SDK's aarch64 cross-GDB to the OpenOCD that `make openocd` is running (`target extended-remote :3333`) — run it in a **second terminal**. Auto-loads `GDB_ELF` or `u-boot-spl-<board>.elf` so you can `load` U-Boot into RAM. |
 | `make board-info` | Probe the connected board over JTAG in one shot (self-contained OpenOCD batch): scan-chain TAP IDCODEs, CoreSight DAP/ROM table, target state, Cortex-A55 registers, SC598 ID/status registers (silicon revision, boot mode, DDR controllers), and a decoded **RAM map** — it detects every populated DDR controller (DMC) live, reports each bank's base + size, and sums the total. Don't run while `make openocd` holds the adapter. |
 | `make terminal` | Open a **minicom** serial console to the SC598 over its USB/UART. Checks minicom is installed (prints how to install it otherwise), auto-detects the port (or `SERIAL_PORT=`), and connects at `SERIAL_BAUD` (default 115200). Exit with Ctrl-A X. |
+| `make boot` | Drive the board to a Linux **login** over JTAG in one command: start OpenOCD, GDB-load U-Boot SPL → proper, then own the serial console to interrupt autoboot, set up networking, `tftp` the `fitImage`, and `bootm`. Collapses `make openocd` + `make gdb` + `make terminal`. Preflights its prereqs (`make image`; `make tftp`; `make tftp-ensure`; and for `BOOT_METHOD=nfs`, `make nfs-setup`) and names any that are missing. All knobs are `BOOT_*` / `BOARD_*` in `config.mk`. |
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
 | `make list-apps` | List the configured apps and their kinds. |
@@ -236,7 +243,8 @@ uses `?=`, so precedence is: **command line > environment > `config.mk`**.
 | `SOM_REV` / `CRR_REV` | *(empty → BSP default)* | SoM / carrier-board hardware revision, written into `conf/local.conf` by `make configure`. Empty uses ADI's default (valid for SOM Rev A/B/C/D, EZ-Kit Carrier rev D); set (e.g. `SOM_REV=D`) only if your hardware differs. |
 | `TFTP_DIR` | *(empty)* | TFTP server document root for `make tftp`. |
 | `NFS_DIR` | *(empty)* | Host dir the rootfs is extracted into and exported over NFS (`make nfs-setup`). |
-| `BOARD_IP` / `HOST_IP` | *(empty / auto)* | Board's static IP and this host's IP for the NFS-root `bootargs` (`ip=` / `nfsroot=`). `HOST_IP` auto-detects if empty. |
+| `BOARD_IP` / `HOST_IP` | *(empty / auto)* | Board's static IP and this host's IP. **Shared** by `make boot` (U-Boot `ipaddr` / `serverip`) and the NFS-root `bootargs` (`ip=` / `nfsroot=`). `HOST_IP` auto-detects if empty. |
+| `BOARD_NETMASK` / `BOARD_GATEWAY` / `BOARD_HOSTNAME` | `255.255.255.0` / *(empty)* / `sc598` | The remaining kernel `ip=` fields, shared by `make boot` and `make nfs-status`. |
 | `NFS_ALLOW` / `NFS_VERS` / `NFS_SUDO` | `HOST_IP/24` / `3` / `sudo` | NFS export client spec, mount version, and the privilege prefix for `make nfs-setup`. |
 | `SDK_VERSION` | `5.0.1` | ADI SDK version component of the install path (match your BSP release, cf. `REPO_MANIFEST_FILE`). |
 | `SDK_IMAGE` | `$(IMAGE)` | Image whose SDK `make sdk` builds (`bitbake … -c populate_sdk`). |
@@ -248,7 +256,14 @@ uses `?=`, so precedence is: **command line > environment > `config.mk`**.
 | `OPENOCD_SUDO` | *(empty)* | Prefix to elevate OpenOCD for ICE USB access (`sudo` when no udev rules). |
 | `OPENOCD_BIN` / `_SCRIPTS` / `_SDK_ROOT` / `_EXTRA_ARGS` | derived from `SDK_INSTALL_DIR` | OpenOCD binary, scripts dir, SDK sysroot, and extra CLI args. |
 | `GDB_BIN` / `GDB_ELF` / `GDB_HOST` | auto-found / *(empty)* / localhost | `make gdb`: the SDK aarch64 GDB (auto-found in the SDK), an optional U-Boot ELF to load, and the host running OpenOCD. |
-| `SERIAL_PORT` / `SERIAL_BAUD` | auto-detect / `115200` | `make terminal`: serial console device (auto-detected if empty) and baud rate. |
+| `SERIAL_PORT` / `SERIAL_BAUD` | auto-detect / `115200` | `make terminal` / `make boot`: serial console device (auto-detected/probed if empty) and baud rate. |
+| `BOOT_METHOD` | `nfs` | `make boot` rootfs source: `nfs` (full systemd login via `make nfs-setup`) or `ramdisk` (the fitImage's initramfs → busybox shell). |
+| `BOOT_FITIMAGE_ADDR` / `BOOT_FITIMAGE_NAME` | `0x90000000` / `fitImage` | DDR scratch the `fitImage` is tftp'd to (above `mem=224M`, so `bootm` isn't clobbered) and its TFTP filename. |
+| `BOOT_CONSOLE` / `BOOT_EARLYCON` / `BOOT_MEM` | `ttySC0,115200` / `adi_uart,0x31003000` / `224M` | Kernel cmdline console / earlycon / mem the bootargs are built from (SC598 board facts). |
+| `BOOT_SPL_SPIN_SYM` / `BOOT_SPL_RUN_SECS` / `BOOT_GDB_RESET` | `board_boot_order` / `4` / `1` | GDB two-stage load: the breakpoint that stops SPL post-DDR before loading proper (empty → timed interrupt after `RUN_SECS`); `monitor reset halt` first. |
+| `BOOT_UBOOT_TIMEOUT` / `BOOT_LINUX_TIMEOUT` | `90` / `180` | Seconds to reach the U-Boot `=>` prompt, and to reach `login:` after `bootm`. |
+| `BOOT_AUTO_LOGIN` / `BOOT_USER` / `BOOT_PASS` | *(empty)* / `root` / `adi` | If set, type these credentials at the login prompt. |
+| `BOOT_INTERACTIVE` / `BOOT_AUTO_STAGE` | `1` / *(empty)* | After login, hand the console to minicom (set `0` for unattended); auto-run `make tftp` staging if the fitImage isn't staged. |
 | `REPO_TOOL_URL` | Google Cloud Storage URL | Where to fetch the `repo` launcher binary (it is **Google's** tool, not ADI's). |
 | `REPO_MANIFEST_URL` | `…/lnxdsp-repo-manifest.git` | The ADI manifest git repo (`repo init -u`). |
 | `REPO_MANIFEST_BRANCH` | `main` | Manifest branch (`repo init -b`). |
@@ -480,6 +495,54 @@ total (e.g. one bank: `0x80000000`, 512 MB). An absent controller bus-faults
 harmlessly: the probe lowers the log level around the read (to hide the expected
 `JTAG-DP STICKY ERROR`) and clears the DP sticky bit so the resume stays safe. It
 needs the adapter to itself, so don't run it while `make openocd` holds the link.
+
+### Automated boot to Linux (`make boot`)
+`make boot` collapses the whole three-terminal JTAG bring-up into one hands-free
+command that ends at a Linux `login:` prompt. It drives, in order:
+
+1. **OpenOCD** — started over the ICE (or an already-running one on
+   `OPENOCD_GDB_PORT` is reused).
+2. **GDB**, two-stage, the way the SC598 needs in JTAG/no-boot mode: `load` U-Boot
+   **SPL** and run it (it inits DDR, then spins waiting for proper at
+   `board_boot_order`); stop there, `load` U-Boot **proper** and run it. Proper's
+   `board_init_r` probes the **ADP5588 @ i2c2 `0x34`** and asserts `uart0-en` —
+   which is what brings the Rev-E console to life.
+3. **Serial console** — `make boot` owns it (auto-probing the USB-serial ports and
+   locking onto whichever emits the U-Boot banner, unless `SERIAL_PORT` pins it),
+   interrupts autoboot, sets up networking, **ping-gates** the link, `tftp`'s the
+   `fitImage` into DDR (`BOOT_FITIMAGE_ADDR`, default `0x90000000`), and `bootm`'s.
+4. **Login** — on `BOOT_METHOD=nfs` (default) the board NFS-mounts the rootfs
+   `make nfs-setup` exported and reaches a full systemd `login:`; `BOOT_METHOD=ramdisk`
+   stops at the fitImage's initramfs busybox shell instead. By default the live
+   console is then handed to minicom so you can log in (`root` / `adi`); set
+   `BOOT_INTERACTIVE=0` for unattended use.
+
+The U-Boot command sequence is built by the same emitter `make nfs-status` uses
+(`bin/lib/bootcmds.sh`), so the two never diverge, and it's written to
+`images/boot-cmds.txt` for inspection. The whole session is logged to
+`images/boot.log`.
+
+**Prerequisites** (preflighted — each missing one is reported with the fix):
+
+```text
+make image          # the fitImage + U-Boot ELFs + rootfs
+make tftp           # stage the fitImage into TFTP_DIR
+make tftp-ensure    # start the TFTP server (sudo)
+make nfs-setup      # export the rootfs (sudo) — only for BOOT_METHOD=nfs
+make boot           # … then drive it all to a login
+```
+
+> **The board must be in a fresh JTAG state for each run** — BMODE in the
+> JTAG/no-boot position, freshly power-cycled. `make boot` resets the SoC over the
+> ICE to load SPL, and the ICE **cannot reset a running core**, so re-running while
+> Linux is still up from a previous boot fails the GDB attach. `make boot` detects
+> that and tells you to power-cycle rather than failing cryptically — power-cycle,
+> then run again.
+
+Because OpenOCD needs the ICE over USB, `make boot` runs it under `OPENOCD_SUDO`
+(default `sudo`) — expect a password prompt unless you've installed udev rules.
+All timings, addresses, the spin-symbol breakpoint, login credentials, and the
+interactive handoff are `BOOT_*` variables in `config.mk`.
 
 ---
 
