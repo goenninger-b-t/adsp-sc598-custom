@@ -39,7 +39,8 @@ BANNER_RE = r"U-Boot SPL|U-Boot 20|Hit any key to stop|ADI Boot Mode"
 
 # A power-cycle is the fix when the SoC is not in a clean JTAG state. The ICE
 # cannot reset a running A55 (e.g. Linux still up from a previous make boot), so
-# the GDB attach/reset fails. Detect that and say so plainly.
+# the GDB attach/reset fails. (make reset-board can't do it either — ADI's RCU/CTI
+# reset aborts on a running core; verified.) Detect that and say so plainly.
 POWERCYCLE_MSG = (
     "could not cleanly attach/reset the SC598 over JTAG. The board is almost "
     "certainly NOT in a fresh JTAG state — most often it is still running Linux "

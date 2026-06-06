@@ -548,6 +548,39 @@ GDB_EXTRA_ARGS     ?=
 
 
 # ============================================================================
+#  Board reset over JTAG  (`make reset-board`)
+# ============================================================================
+#
+# `make reset-board` resets the SoC over the ICE/JTAG link in a one-shot OpenOCD
+# batch (like `make board-info`) and exits - it does NOT hold the adapter, so do
+# not run it while `make openocd` is up. It reuses the OPENOCD_* settings above.
+#
+# The SC598 target cfg uses `reset_config trst_only` (no SRST line wired to the
+# ICE), so the reset runs the cfg's on-chip RCU + CTI warm system reset. It
+# completes on a core that is in the boot ROM / U-Boot / bare metal. LIMITATION
+# (verified on hardware): a core already running an OS - e.g. Linux from a
+# previous `make boot` - CANNOT be reset this way; ADI's sequence aborts and the
+# core resumes the OS. With no SRST to force it, the only reset then is a
+# power-cycle. `make reset-board` reports that as COULD NOT RESET (it does not
+# claim success); a busy/disconnected ICE is reported as a separate failure.
+
+# ------- RESET_MODE ---------------------------------------------------------
+# What state to leave the cores in after the reset:
+#   halt   Reset, then leave the A55 HALTED at the reset vector - the clean,
+#          deterministic state for a following `make boot` / JTAG load. The board
+#          does NOT boot on its own afterwards (it sits halted). Default.
+#   run    Reset, then run from the BMODE boot source. In JTAG/no-boot BMODE the
+#          boot ROM just spins (nothing visibly boots); in QSPI/eMMC/SD BMODE the
+#          board reboots into U-Boot -> Linux.
+#   init   Like halt, but also run any OpenOCD reset-init events.
+#
+# Examples:
+#   RESET_MODE ?= halt
+#   make reset-board RESET_MODE=run
+RESET_MODE         ?= halt
+
+
+# ============================================================================
 #  Serial console  (`make terminal`)
 # ============================================================================
 #
@@ -623,7 +656,8 @@ MINICOM_ARGS       ?=
 #   - for METHOD=nfs, a rootfs : make nfs-setup     (exports NFS_DIR)
 #   - board POWER-CYCLED, BMODE in JTAG/no-boot: the ICE can't reset a running
 #     core, so re-running over a live Linux fails the attach. make boot detects
-#     this and tells you to power-cycle (it cannot do so itself).
+#     this and tells you to power-cycle (it cannot do so itself; `make
+#     reset-board` can't either — ADI's reset aborts on a running core).
 #
 # Typical use (everything else taken from this file):
 #   make boot

@@ -88,6 +88,7 @@ Other boards in the same BSP family build from the identical flow — just chang
 │   ├── openocd-run.sh             #   make openocd        — start OpenOCD (ADI ICE JTAG)
 │   ├── gdb-run.sh                 #   make gdb            — attach SDK aarch64 GDB to OpenOCD (:3333)
 │   ├── board-info.sh              #   make board-info     — JTAG probe (IDCODEs, DAP, regs, silicon rev)
+│   ├── reset-board.sh             #   make reset-board    — JTAG reset (RCU+CTI warm reset over the ICE)
 │   ├── terminal-run.sh            #   make terminal       — minicom serial console to the SC598
 │   ├── boot-run.sh                #   make boot           — drive JTAG -> U-Boot -> Linux login (front end)
 │   ├── boot-drive.py              #   make boot           — orchestration engine (OpenOCD + GDB + serial)
@@ -212,6 +213,7 @@ current settings.
 | `make openocd` | Start the ADI fork of OpenOCD over a JTAG emulator (ICE-1000/ICE-2000) to debug the SC598 and load U-Boot via GDB on `:3333`. OpenOCD ships in the ADI SDK; all paths/options are `config.mk` vars (`OPENOCD_*`, `SDK_*`). |
 | `make gdb` | Attach the SDK's aarch64 cross-GDB to the OpenOCD that `make openocd` is running (`target extended-remote :3333`) — run it in a **second terminal**. Auto-loads `GDB_ELF` or `u-boot-spl-<board>.elf` so you can `load` U-Boot into RAM. |
 | `make board-info` | Probe the connected board over JTAG in one shot (self-contained OpenOCD batch): scan-chain TAP IDCODEs, CoreSight DAP/ROM table, target state, Cortex-A55 registers, SC598 ID/status registers (silicon revision, boot mode, DDR controllers), and a decoded **RAM map** — it detects every populated DDR controller (DMC) live, reports each bank's base + size, and sums the total. Don't run while `make openocd` holds the adapter. |
+| `make reset-board` | Reset the SC598 over the ICE/JTAG link in one shot — a self-contained OpenOCD batch running the SC598 cfg's on-chip **RCU+CTI warm reset** (the part has no SRST line). **Limitation (verified):** a core already running an OS (e.g. Linux from a previous `make boot`) **cannot** be reset this way — ADI's sequence aborts and the core resumes, so it reports `COULD NOT RESET` and you must power-cycle. Completes on a core in the boot ROM / U-Boot / bare metal. `RESET_MODE=halt` (default), `run` (run from the BMODE boot source), or `init`. Don't run while `make openocd` holds the adapter. |
 | `make terminal` | Open a **minicom** serial console to the SC598 over its USB/UART. Checks minicom is installed (prints how to install it otherwise), auto-detects the port (or `SERIAL_PORT=`), and connects at `SERIAL_BAUD` (default 115200). Exit with Ctrl-A X. |
 | `make boot` | Drive the board to a Linux **login** over JTAG in one command: start OpenOCD, GDB-load U-Boot SPL → proper, then own the serial console to interrupt autoboot, set up networking, `tftp` the `fitImage`, and `bootm`. Collapses `make openocd` + `make gdb` + `make terminal`. Preflights its prereqs (`make image`; `make tftp`; `make tftp-ensure`; and for `BOOT_METHOD=nfs`, `make nfs-setup`) and names any that are missing. All knobs are `BOOT_*` / `BOARD_*` in `config.mk`. |
 | `make publish GH_REPO=... GH_VERSION=...` | Stage a versioned, checksummed asset and upload a GitHub release (also TFTP-stages if `TFTP_DIR` is set). |
@@ -256,6 +258,7 @@ uses `?=`, so precedence is: **command line > environment > `config.mk`**.
 | `OPENOCD_SUDO` | *(empty)* | Prefix to elevate OpenOCD for ICE USB access (`sudo` when no udev rules). |
 | `OPENOCD_BIN` / `_SCRIPTS` / `_SDK_ROOT` / `_EXTRA_ARGS` | derived from `SDK_INSTALL_DIR` | OpenOCD binary, scripts dir, SDK sysroot, and extra CLI args. |
 | `GDB_BIN` / `GDB_ELF` / `GDB_HOST` | auto-found / *(empty)* / localhost | `make gdb`: the SDK aarch64 GDB (auto-found in the SDK), an optional U-Boot ELF to load, and the host running OpenOCD. |
+| `RESET_MODE` | `halt` | `make reset-board` post-reset core state: `halt` (halted at the reset vector, ready for `make boot`), `run` (run from the BMODE boot source), or `init` (halt + reset-init events). |
 | `SERIAL_PORT` / `SERIAL_BAUD` | auto-detect / `115200` | `make terminal` / `make boot`: serial console device (auto-detected/probed if empty) and baud rate. |
 | `BOOT_METHOD` | `nfs` | `make boot` rootfs source: `nfs` (full systemd login via `make nfs-setup`) or `ramdisk` (the fitImage's initramfs → busybox shell). |
 | `BOOT_FITIMAGE_ADDR` / `BOOT_FITIMAGE_NAME` | `0x90000000` / `fitImage` | DDR scratch the `fitImage` is tftp'd to (above `mem=224M`, so `bootm` isn't clobbered) and its TFTP filename. |
@@ -496,6 +499,28 @@ harmlessly: the probe lowers the log level around the read (to hide the expected
 `JTAG-DP STICKY ERROR`) and clears the DP sticky bit so the resume stays safe. It
 needs the adapter to itself, so don't run it while `make openocd` holds the link.
 
+### Reset the board over JTAG (`make reset-board`)
+`make reset-board` resets the SC598 over the ICE in one shot — a self-contained
+OpenOCD batch (`init` → `reset` → `shutdown`) like `make board-info`, so it does
+**not** hold the adapter (don't run it while `make openocd` is up). The SC598
+target cfg declares `reset_config trst_only` — the ICE has **no SRST line** — so
+`reset` runs the cfg's on-chip **RCU + CTI warm system reset**.
+
+**Limitation (verified on hardware).** A core that is already running an OS — e.g.
+Linux from a previous `make boot` — **cannot** be reset this way. OpenOCD halts
+it, but ADI's RCU/CTI sequence then *aborts* (`abort occurred` / `Error executing
+event reset-assert`); the core is **not** reset and resumes the OS. With no SRST
+to force it, the only reset in that state is a **power-cycle** (BMODE in
+JTAG/no-boot) — the same thing `make boot` asks for. `make reset-board` detects
+the abort and reports `COULD NOT RESET` rather than claiming success. The reset
+*does* complete on a core that is not deep in an OS (the boot ROM, U-Boot/SPL, or
+bare metal), where the sequence ends with `system reset done`.
+
+`RESET_MODE` picks the post-reset state when the reset completes: `halt` (default)
+leaves the A55 halted at the reset vector; `run` runs from the BMODE boot source
+(in JTAG/no-boot BMODE the boot ROM just spins; in QSPI/eMMC/SD BMODE it boots
+U-Boot → Linux); `init` is `halt` plus any OpenOCD reset-init events.
+
 ### Automated boot to Linux (`make boot`)
 `make boot` collapses the whole three-terminal JTAG bring-up into one hands-free
 command that ends at a Linux `login:` prompt. It drives, in order:
@@ -537,7 +562,8 @@ make boot           # … then drive it all to a login
 > ICE to load SPL, and the ICE **cannot reset a running core**, so re-running while
 > Linux is still up from a previous boot fails the GDB attach. `make boot` detects
 > that and tells you to power-cycle rather than failing cryptically — power-cycle,
-> then run again.
+> then run again. (`make reset-board` can't substitute here — ADI's reset aborts
+> on a running core.)
 
 Because OpenOCD needs the ICE over USB, `make boot` runs it under `OPENOCD_SUDO`
 (default `sudo`) — expect a password prompt unless you've installed udev rules.

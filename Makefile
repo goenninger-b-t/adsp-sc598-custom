@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help host-setup init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info terminal boot publish new-app list-apps list-serial-ports clean distclean shell distro-info update-tooling
+.PHONY: help host-setup init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info reset-board terminal boot publish new-app list-apps list-serial-ports clean distclean shell distro-info update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -73,6 +73,8 @@ help:
 	@echo "                                   Optional: GDB_ELF=<u-boot.elf> GDB_HOST=<ip> (see config.mk)"
 	@echo "  make board-info                  Probe the board over JTAG: IDCODEs, DAP/ROM, regs, silicon rev, boot mode, RAM"
 	@echo "                                   Self-contained OpenOCD run; not while 'make openocd' holds the adapter"
+	@echo "  make reset-board                 Reset the SC598 over JTAG in one shot (ADI RCU+CTI warm reset; self-contained OpenOCD)"
+	@echo "                                   A running OS can't be reset (power-cycle for that). RESET_MODE=halt|run|init (default halt)"
 	@echo "  make terminal                    Open a minicom serial console to the SC598 (auto-detects port)"
 	@echo "                                   Optional: SERIAL_PORT=/dev/ttyUSBx SERIAL_BAUD=115200"
 	@echo "  make boot                        Drive the board to a Linux login over JTAG, hands-free (openocd+gdb+console)"
@@ -331,6 +333,24 @@ board-info:
 		--ice "$(OPENOCD_ICE)" \
 		--target "$(OPENOCD_TARGET)" \
 		--machine "$(MACHINE)" \
+		$(if $(strip $(OPENOCD_SUDO)),--sudo "$(OPENOCD_SUDO)")
+
+# Reset the attached SC598 over the ICE/JTAG link in a one-shot OpenOCD batch
+# (ADI's RCU+CTI warm reset; the SC598 cfg declares no SRST line) then exit.
+# Reuses the OPENOCD_* settings; RESET_MODE (halt|run|init) picks the post-reset
+# core state. LIMITATION: a core already running an OS (e.g. Linux from a previous
+# `make boot`) cannot be reset this way - ADI's sequence aborts and the core
+# resumes; reset-board reports COULD NOT RESET and you must power-cycle. It works
+# on a core in the boot ROM / U-Boot / bare metal. Self-contained run - do NOT
+# run while `make openocd` holds the adapter.
+reset-board:
+	@bash "$(BIN_DIR)/reset-board.sh" \
+		--openocd-bin "$(OPENOCD_BIN)" \
+		--scripts-dir "$(OPENOCD_SCRIPTS)" \
+		--ice "$(OPENOCD_ICE)" \
+		--target "$(OPENOCD_TARGET)" \
+		--machine "$(MACHINE)" \
+		--mode "$(RESET_MODE)" \
 		$(if $(strip $(OPENOCD_SUDO)),--sudo "$(OPENOCD_SUDO)")
 
 # Open a minicom serial console to the board's USB/UART (the "Terminal1" you
