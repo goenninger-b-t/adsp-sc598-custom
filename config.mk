@@ -762,14 +762,19 @@ BOOT_MEM           ?= $(LINUX_MEM)
 
 # ------- BOOT_FITIMAGE_ADDR / BOOT_FITIMAGE_NAME ----------------------------
 # DDR scratch the fitImage is tftp'd to before `bootm`, and its filename on the
-# TFTP server. 0x90000000 sits ABOVE the kernel's mem=224M window
-# (0x80000000-0x8E000000) so `bootm` can unpack the FIT without the kernel
-# clobbering the source. (Do NOT use 0x80000000 - that is inside the kernel RAM.)
+# TFTP server.
+#
+# IMPORTANT - COUPLED TO LINUX_MEM: with LINUX_MEM, Linux (and U-Boot's RAM)
+# occupies the TOP of DDR; the base is (DDR_BASE + DDR_SIZE - LINUX_MEM), e.g.
+# 0x92000000 for the default LINUX_MEM=224M. This address MUST be >= that base
+# and below the FIT's internal unpack addresses (~0x99000000). Anything below the
+# base is the SHARC+ region (reserved): `tftp` there fails with "trying to
+# overwrite reserved memory". If you change LINUX_MEM, keep this >= the new base.
 #
 # Examples:
-#   BOOT_FITIMAGE_ADDR ?= 0x90000000
+#   BOOT_FITIMAGE_ADDR ?= 0x92000000   # Linux base for LINUX_MEM=224M
 #   BOOT_FITIMAGE_NAME ?= fitImage
-BOOT_FITIMAGE_ADDR ?= 0x90000000
+BOOT_FITIMAGE_ADDR ?= 0x92000000
 BOOT_FITIMAGE_NAME ?= fitImage
 
 # ------- BOOT_SPL_ELF / BOOT_PROPER_ELF -------------------------------------

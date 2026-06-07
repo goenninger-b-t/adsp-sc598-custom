@@ -25,6 +25,9 @@
 #   --allow SPEC      /etc/exports client spec; default <host-ip>/24
 #   --host-ip IP      this host's IP; default auto-detected (primary global IPv4)
 #   --board-ip IP     board's static IP, for the ip= bootarg / status
+#   --netmask MASK    netmask, for the ip= bootarg / status
+#   --gateway IP      default gateway, for the ip= bootarg / status (optional)
+#   --hostname NAME   hostname, for the ip= bootarg / status
 #   --nfs-vers N      NFS version for the mount (default 3)
 #   --force           setup: wipe + re-extract even if --nfs-dir is populated
 #
@@ -38,7 +41,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUB="${1:-}"; shift || true
 
 NFS_DIR=""; ROOTFS_TAR=""; DEPLOY_DIR=""; IMAGE=""; MACHINE=""
-ALLOW=""; HOST_IP=""; BOARD_IP=""; NFS_VERS="3"; FORCE=""; NETMASK=""; HOSTNAME=""
+ALLOW=""; HOST_IP=""; BOARD_IP=""; NFS_VERS="3"; FORCE=""; NETMASK=""; HOSTNAME=""; GATEWAY=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -52,6 +55,7 @@ while [[ $# -gt 0 ]]; do
         --board-ip)    BOARD_IP="$2";   shift 2 ;;
         --netmask)     NETMASK="$2";    shift 2 ;;
         --hostname)    HOSTNAME="$2";   shift 2 ;;
+        --gateway)     GATEWAY="$2";    shift 2 ;;
         --nfs-vers)    NFS_VERS="$2";   shift 2 ;;
         --force)       FORCE=1;         shift ;;
         *) echo "nfs-server.sh: unknown arg: $1" >&2; exit 1 ;;
@@ -86,7 +90,7 @@ nfs_unit(){
 # (an empty NETMASK/HOSTNAME falls back to the emitter's defaults), force the
 # NFS bootargs shape, then source it. bootcmds_print_uboot reads NFS_DIR live.
 export BOARD_IP HOST_IP NFS_DIR NFS_VERS
-export BOARD_NETMASK="$NETMASK" BOARD_HOSTNAME="$HOSTNAME" BOOT_METHOD=nfs
+export BOARD_NETMASK="$NETMASK" BOARD_HOSTNAME="$HOSTNAME" BOARD_GATEWAY="$GATEWAY" BOOT_METHOD=nfs
 # shellcheck source=bin/lib/bootcmds.sh
 source "$SCRIPT_DIR/lib/bootcmds.sh"
 
@@ -159,7 +163,7 @@ case "$SUB" in
     [ -n "${BOARD_IP:-}" ] || log "note: set BOARD_IP in config.mk to fill in <board-ip>"
     ;;
   ""|-h|--help)
-    echo "Usage: nfs-server.sh {setup|status} --nfs-dir DIR [--board-ip IP] [--host-ip IP] [--allow CIDR] [--nfs-vers N] [--force]"
+    echo "Usage: nfs-server.sh {setup|status} --nfs-dir DIR [--board-ip IP] [--gateway IP] [--host-ip IP] [--allow CIDR] [--nfs-vers N] [--force]"
     ;;
   *) die "unknown subcommand: '$SUB' (use: setup | status)";;
 esac

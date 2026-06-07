@@ -65,7 +65,7 @@ help:
 	@echo "  make tftp-test                   List served files + verify one downloads via TFTP (loopback)"
 	@echo "                                   Optional: TFTP_TEST_FILE=<name> TFTP_TEST_HOST=<ip>"
 	@echo "  make nfs-setup                   Export the built rootfs over NFS for NFS-root dev (sudo)"
-	@echo "                                   Required: NFS_DIR=/srv/nfs/...  (set in config.mk)"
+	@echo "                                   Required: NFS_DIR=/srv/nfs/...  (set in config.mk); NFS_FORCE=1 re-extracts"
 	@echo "  make nfs-status                  Show NFS export state + the exact u-boot NFS-root bootargs"
 	@echo "  make sdk                         Build the ADI SDK (populate_sdk) + install to SDK_INSTALL_DIR"
 	@echo "                                   Provides OpenOCD/GDB for 'make openocd'; SDK_SUDO=sudo for /opt"
@@ -271,7 +271,9 @@ nfs-setup:
 		$(if $(strip $(HOST_IP)),--host-ip "$(HOST_IP)") \
 		$(if $(strip $(BOARD_IP)),--board-ip "$(BOARD_IP)") \
 		$(if $(strip $(BOARD_NETMASK)),--netmask "$(BOARD_NETMASK)") \
-		$(if $(strip $(BOARD_HOSTNAME)),--hostname "$(BOARD_HOSTNAME)")
+		$(if $(strip $(BOARD_GATEWAY)),--gateway "$(BOARD_GATEWAY)") \
+		$(if $(strip $(BOARD_HOSTNAME)),--hostname "$(BOARD_HOSTNAME)") \
+		$(if $(strip $(NFS_FORCE)),--force)
 
 nfs-status:
 	@bash "$(BIN_DIR)/nfs-server.sh" status \
@@ -284,6 +286,7 @@ nfs-status:
 		$(if $(strip $(HOST_IP)),--host-ip "$(HOST_IP)") \
 		$(if $(strip $(BOARD_IP)),--board-ip "$(BOARD_IP)") \
 		$(if $(strip $(BOARD_NETMASK)),--netmask "$(BOARD_NETMASK)") \
+		$(if $(strip $(BOARD_GATEWAY)),--gateway "$(BOARD_GATEWAY)") \
 		$(if $(strip $(BOARD_HOSTNAME)),--hostname "$(BOARD_HOSTNAME)")
 
 # Build the ADI SDK (Yocto populate_sdk) for SDK_IMAGE and install it into
