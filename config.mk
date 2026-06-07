@@ -210,6 +210,49 @@ SOM_REV     ?=
 CRR_REV     ?=
 
 
+# ------- LINUX_MEM  (Linux <-> SHARC+ DDR split) ----------------------------
+# How much of the SoC's DDR is assigned to Linux. The ADSP-SC598 shares ONE DDR
+# between the Cortex-A55 (Linux) and the SHARC+ cores. LINUX_MEM is the single
+# knob: Linux gets the TOP LINUX_MEM of physical DDR and the SHARC+ cores get the
+# REST (DDR_SIZE - LINUX_MEM) at the bottom. There is no separate SHARC setting -
+# the reserve is simply whatever DDR Linux does not take.
+#
+# `make configure` validates LINUX_MEM and writes the resulting Linux DDR window
+# into the build (conf/local.conf); meta-custom-bsp bbappends then set U-Boot's
+# CFG_SYS_SDRAM_BASE/SIZE AND the kernel device-tree /memory node + mem= bootarg
+# from it. (U-Boot's bootm rewrites the kernel /memory node from CFG_SYS_SDRAM_*,
+# so both are set and kept in agreement.) LINUX_MEM also feeds `make boot`
+# (BOOT_MEM derives from it), so the JTAG/NFS boot and the built image agree.
+#
+# Valid range:  112M <= LINUX_MEM <= DDR_SIZE
+#   - upper: it must fit physical DDR (DDR_SIZE).
+#   - lower: the FIT image loads the kernel DTB at 0x99000000, which must sit
+#     inside Linux's window, so Linux's base (DDR top - LINUX_MEM) must stay
+#     <= 0x99000000, i.e. LINUX_MEM >= 112M.
+#
+# Layout at the 224M default (of 512M):
+#   SHARC+ : 0x80000000 .. 0x92000000   (DDR_SIZE - LINUX_MEM = 288 MB)
+#   Linux  : 0x92000000 .. 0xA0000000   (LINUX_MEM           = 224 MB)
+#
+# Examples:
+#   LINUX_MEM ?= 224M            # default; leaves 288 MB for the SHARC+ cores
+#   make image LINUX_MEM=384M    # Linux 384 MB, SHARC+ 128 MB
+#   make image LINUX_MEM=512M    # all DDR to Linux (no SHARC+ DDR)
+LINUX_MEM   ?= 224M
+
+# ------- DDR_SIZE / DDR_BASE  (physical DDR on the SOM) ----------------------
+# Total physical DDR size and base address - board facts. The ADSP-SC598 SOM
+# Rev E has 512 MB at 0x80000000 (confirm live with `make board-info`, which
+# probes the DMC controllers). LINUX_MEM is bounded by DDR_SIZE, and Linux's
+# window is placed at the top of [DDR_BASE, DDR_BASE + DDR_SIZE).
+#
+# Examples:
+#   DDR_SIZE ?= 512M
+#   DDR_BASE ?= 0x80000000
+DDR_SIZE    ?= 512M
+DDR_BASE    ?= 0x80000000
+
+
 # ----------------------------------------------------------------------------
 #  TFTP staging  (`make tftp`)
 # ----------------------------------------------------------------------------
@@ -686,18 +729,20 @@ BOOT_METHOD        ?= nfs
 BOOT_NETDEV        ?= eth0
 
 # ------- BOOT_CONSOLE / BOOT_EARLYCON / BOOT_MEM ----------------------------
-# Kernel cmdline console / earlycon / mem for the SC598. These are board facts
-# you rarely change: the console UART is ttySC0 @ 115200, the early console is
-# the ADI UART at 0x31003000, and Linux is given 224 MB (mem=224M, RAM
-# 0x80000000-0x8E000000) with the rest reserved for the SHARC cores.
+# Kernel cmdline console / earlycon / mem for the SC598. console/earlycon are
+# board facts you rarely change: the console UART is ttySC0 @ 115200, the early
+# console is the ADI UART at 0x31003000. BOOT_MEM is the kernel mem= for
+# `make boot` and DERIVES from LINUX_MEM (the Linux <-> SHARC+ DDR split; see the
+# LINUX_MEM section above) so the JTAG/NFS boot matches the built image. Override
+# only to boot with a different cap than the image was built for.
 #
 # Examples:
 #   BOOT_CONSOLE  ?= ttySC0,115200
 #   BOOT_EARLYCON ?= adi_uart,0x31003000
-#   BOOT_MEM      ?= 224M
+#   BOOT_MEM      ?= $(LINUX_MEM)
 BOOT_CONSOLE       ?= ttySC0,115200
 BOOT_EARLYCON      ?= adi_uart,0x31003000
-BOOT_MEM           ?= 224M
+BOOT_MEM           ?= $(LINUX_MEM)
 
 # ------- BOOT_FITIMAGE_ADDR / BOOT_FITIMAGE_NAME ----------------------------
 # DDR scratch the fitImage is tftp'd to before `bootm`, and its filename on the

@@ -20,6 +20,9 @@ MACHINE=""
 DISTRO=""
 SOM_REV=""
 CRR_REV=""
+LINUX_MEM=""
+DDR_SIZE=""
+DDR_BASE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -29,6 +32,9 @@ while [[ $# -gt 0 ]]; do
         --distro)       DISTRO="$2";       shift 2 ;;
         --som-rev)      SOM_REV="$2";      shift 2 ;;
         --crr-rev)      CRR_REV="$2";      shift 2 ;;
+        --linux-mem)    LINUX_MEM="$2";    shift 2 ;;
+        --ddr-size)     DDR_SIZE="$2";     shift 2 ;;
+        --ddr-base)     DDR_BASE="$2";     shift 2 ;;
         *) echo "configure-build.sh: unknown arg: $1" >&2; exit 1 ;;
     esac
 done
@@ -127,8 +133,71 @@ inject_revisions() {
     echo "[configure] hardware revision -> ${SOM_REV:+SOM_REV=\"$SOM_REV\" }${CRR_REV:+CRR_REV=\"$CRR_REV\"}"
 }
 
+# Parse a memory size (224M / 512M / 1G / 1024K / 0x.. / decimal) -> bytes.
+mem_to_bytes() {
+    local v; v="$(printf '%s' "$1" | tr 'A-Z' 'a-z')"
+    case "$v" in
+        *g) echo $(( ${v%g} * 1073741824 )) ;;
+        *m) echo $(( ${v%m} * 1048576 )) ;;
+        *k) echo $(( ${v%k} * 1024 )) ;;
+        0x*|[0-9]*) echo $(( v )) ;;
+        *) echo "[configure] ERROR: bad memory size '$1'" >&2; exit 1 ;;
+    esac
+}
+
+# Validate LINUX_MEM against physical DDR + the FIT DTB load address, compute the
+# Linux DDR window (Linux at the TOP of DDR; the SHARC+ cores get the rest), and
+# inject LINUX_MEM / LINUX_MEM_BASE / LINUX_MEM_SIZE into the managed local.conf
+# block for the meta-custom-bsp linux-adi bbappend. Only emitted when set.
+inject_linux_mem() {
+    local target="$1"
+    [ -n "$LINUX_MEM" ] || return 0
+    local end="# === END custom-apps overlay ==="
+    local ddrbase ddrsize linuxsize top fitfdt lbase
+    ddrbase="$(mem_to_bytes "${DDR_BASE:-0x80000000}")"
+    ddrsize="$(mem_to_bytes "${DDR_SIZE:-512M}")"
+    linuxsize="$(mem_to_bytes "$LINUX_MEM")"
+    top=$(( ddrbase + ddrsize ))
+    fitfdt=$(( 0x99000000 ))   # FIT kernel-DTB load address (fit-image.its)
+
+    [ "$linuxsize" -gt 0 ] || { echo "[configure] ERROR: LINUX_MEM ('$LINUX_MEM') must be > 0" >&2; exit 1; }
+    if [ "$linuxsize" -gt "$ddrsize" ]; then
+        echo "[configure] ERROR: LINUX_MEM ($LINUX_MEM) exceeds physical DDR_SIZE ($DDR_SIZE)." >&2
+        exit 1
+    fi
+    lbase=$(( top - linuxsize ))
+    if [ "$lbase" -gt "$fitfdt" ]; then
+        echo "[configure] ERROR: LINUX_MEM ($LINUX_MEM) too small - Linux base $(printf '0x%08x' "$lbase") would sit above the FIT kernel-DTB load address 0x99000000 (boot would fail). Increase LINUX_MEM (min ~112M)." >&2
+        exit 1
+    fi
+
+    local base_hex size_hex base_node sharc_mb
+    base_hex="$(printf '0x%08x' "$lbase")"
+    size_hex="$(printf '0x%08x' "$linuxsize")"
+    base_node="${base_hex#0x}"   # DT node unit-address (no 0x), e.g. memory@92000000
+    sharc_mb=$(( (ddrsize - linuxsize) / 1048576 ))
+
+    local block=""
+    block+="# Linux <-> SHARC+ DDR split (config.mk LINUX_MEM) - consumed by the"$'\n'
+    block+="# meta-custom-bsp linux-adi bbappend (sets the DT /memory node + mem=)."$'\n'
+    block+="LINUX_MEM = \"$LINUX_MEM\""$'\n'
+    block+="LINUX_MEM_BASE = \"$base_hex\""$'\n'
+    block+="LINUX_MEM_SIZE = \"$size_hex\""$'\n'
+    block+="LINUX_MEM_BASE_NODE = \"$base_node\""$'\n'
+
+    local tmp; tmp="$(mktemp)"
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [ "$line" = "$end" ]; then printf '%s' "$block"; fi
+        printf '%s\n' "$line"
+    done < "$target" > "$tmp"
+    cat "$tmp" > "$target"
+    rm -f "$tmp"
+    echo "[configure] Linux RAM -> mem=$LINUX_MEM  window=$base_hex+$size_hex  (SHARC+ gets ${sharc_mb} MB of ${DDR_SIZE:-512M})"
+}
+
 apply_overlay "$BUILD_DIR/conf/local.conf"    "$OVERLAYS_DIR/local.conf.fragment"
 inject_revisions "$BUILD_DIR/conf/local.conf"
+inject_linux_mem "$BUILD_DIR/conf/local.conf"
 apply_overlay "$BUILD_DIR/conf/bblayers.conf" "$OVERLAYS_DIR/bblayers.conf.fragment"
 
 echo "[configure] Done."
@@ -136,4 +205,5 @@ echo "[configure]   build dir : $BUILD_DIR"
 echo "[configure]   machine   : $MACHINE"
 echo "[configure]   distro    : $DISTRO"
 echo "[configure]   som/crr   : ${SOM_REV:-<BSP default>} / ${CRR_REV:-<BSP default>}"
+echo "[configure]   linux RAM : ${LINUX_MEM:-<BSP default>} (of ${DDR_SIZE:-512M} DDR)"
 echo "[configure]   layer dir : $LAYER_DIR"

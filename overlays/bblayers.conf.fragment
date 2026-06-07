@@ -2,4 +2,6 @@
 # Managed by overlays/bblayers.conf.fragment.
 # Re-applied by bin/configure-build.sh on every `make configure`.
 BBLAYERS += "${BSPDIR}/layers/meta-custom-apps"
+# Static, hand-maintained BSP layer (lives at the project root, beside src/).
+BBLAYERS += "${BSPDIR}/../meta-custom-bsp"
 # === END custom-apps overlay ===
