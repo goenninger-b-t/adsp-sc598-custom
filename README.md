@@ -94,6 +94,7 @@ Other boards in the same BSP family build from the identical flow — just chang
 │   ├── boot-drive.py              #   make boot           — orchestration engine (OpenOCD + GDB + serial)
 │   ├── publish-release.sh         #   make publish        — GitHub release upload
 │   ├── list-serial-ports.sh       #   make list-serial-ports — present serial ports
+│   ├── detect-console-port.sh     #   make detect-console-port — probe ports for the SC598 console
 │   ├── distro-info.sh             #   make distro-info    — print distro name/version + build context
 │   ├── make-tooling-archive.sh    #   make update-tooling — self-extracting archive
 │   └── lib/
@@ -203,6 +204,7 @@ current settings.
 | `make apps` | (Re)generate `src/layers/meta-custom-apps` from every `src/apps/<name>/app.yaml`. |
 | `make image [IMAGE=name]` | `configure` + `apps` + `bitbake` the image, copy the `wic.gz` into `images/`, and collect the image's SPDX SBOM. |
 | `make sbom` | (Re)generate the image's SPDX SBOM (via the `create-spdx` class) and copy it into `images/`. |
+| `make sbom-collect` | Helper (run by `make image` / `make sbom`): copy the SPDX SBOMs from the last build's deploy dir into `images/` — no rebuild. |
 | `make sdcard` | Decompress the `wic.gz` to `images/sdcard.img`. |
 | `make flash DEV=/dev/sdX` | `dd` `images/sdcard.img` to the device, with mount-point safety checks and a typed `YES` confirmation. |
 | `make tftp TFTP_DIR=...` | Stage `fitImage` / kernel / dtb / initrd into a TFTP root and write a `README.tftp-boot` with u-boot commands. |
@@ -222,6 +224,7 @@ current settings.
 | `make new-app NAME=foo [KIND=...]` | Scaffold a new app skeleton under `src/apps/foo/`. |
 | `make list-apps` | List the configured apps and their kinds. |
 | `make list-serial-ports` | List present serial ports with their stable `/dev/serial/by-id/` names, USB chip + FTDI channel, and a tag on the FT4232H channel A (the JTAG channel — not the console). Use it to pick `SERIAL_PORT` for `make terminal`. |
+| `make detect-console-port` | Find which serial port is the SC598 **console** by actively probing: it opens each USB-serial candidate, nudges it, and listens for output only the SOM console emits (U-Boot, `login:`, kernel banner, the `adsp-sc598` hostname). Board-agnostic (doesn't assume the bridge chip — this board's is a CP2102N) and definitive, but the **board must be powered and past the boot ROM** (in JTAG/no-boot the console is silent until `make boot`). Skips JTAG ports (ICE, FT4232H ch.A). Prints the detected `/dev/ttyUSBx` on stdout: `make terminal SERIAL_PORT="$(make -s detect-console-port)"`. |
 | `make update-tooling` | Build the self-extracting tooling archive into `tooling/`. |
 | `make clean` | Remove `src/<BUILDDIR>/tmp/` (keeps sstate). |
 | `make distclean` | Also remove sstate-cache, downloads, the generated layer, and `tooling/`. |

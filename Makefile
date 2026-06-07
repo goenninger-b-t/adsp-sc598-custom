@@ -41,7 +41,7 @@ CUSTOM_LAYER := $(LAYERS_DIR)/meta-custom-apps
 
 .DEFAULT_GOAL := help
 
-.PHONY: help host-setup init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info reset-board terminal boot publish new-app list-apps list-serial-ports clean distclean shell distro-info update-tooling
+.PHONY: help host-setup init fetch configure apps image sbom sbom-collect sdcard flash tftp tftp-status tftp-ensure tftp-test nfs-setup nfs-status sdk openocd gdb board-info reset-board terminal boot publish new-app list-apps list-serial-ports detect-console-port clean distclean shell distro-info update-tooling
 
 help:
 	@echo "ADSP-SC598 Yocto build"
@@ -55,6 +55,7 @@ help:
 	@echo "  make image [IMAGE=name]          bitbake the image and copy wic.gz to images/"
 	@echo "                                   Optional: LINUX_MEM=224M (RAM for Linux; SHARC+ gets the rest, see config.mk)"
 	@echo "  make sbom                        (Re)generate the image's SPDX SBOM into images/"
+	@echo "  make sbom-collect                Copy the last build's SPDX SBOMs into images/ (helper; run by image/sbom)"
 	@echo "  make sdcard                      Decompress wic.gz to images/sdcard.img"
 	@echo "  make flash DEV=/dev/sdX          dd images/sdcard.img to /dev/sdX (with safety prompt)"
 	@echo "  make tftp                        Copy fitImage/kernel/dtb/initrd to TFTP_DIR for net-boot"
@@ -88,11 +89,13 @@ help:
 	@echo "                                   KIND: local-source | git | prebuilt-binary | prebuilt-tarball"
 	@echo "  make list-apps                   List configured apps"
 	@echo "  make list-serial-ports           List serial ports + by-id names, USB chip/channel (FT4232H JTAG tagged)"
+	@echo "  make detect-console-port         Probe the serial ports to find the SC598 console (board must be booted)"
 	@echo "  make clean                       Remove tmp/ (keep sstate)"
 	@echo "  make distclean                   Also remove sstate-cache and downloads"
 	@echo "  make shell                       Subshell with bitbake env sourced"
 	@echo "  make distro-info                 Print the Yocto distro (name/version/codename) + build context + layers"
 	@echo "  make update-tooling              Rebuild the self-extracting tooling archive into tooling/"
+	@echo "  make help                        Show this target list (the default goal)"
 	@echo ""
 	@echo "Settings: MACHINE=$(MACHINE) DISTRO=$(DISTRO) IMAGE=$(IMAGE) BUILDDIR=$(BUILDDIR)"
 
@@ -459,6 +462,18 @@ list-apps:
 
 list-serial-ports:
 	@bash "$(BIN_DIR)/list-serial-ports.sh" --long
+
+# Actively probe the serial ports to find which one is the SC598 console: open
+# each USB-serial candidate, nudge it with a CR, and listen for output only the
+# SOM console emits (U-Boot, login:, kernel banner, the adsp-sc598 hostname).
+# Board-agnostic (doesn't assume the bridge chip) but the board must be powered
+# and past the boot ROM. Skips JTAG ports. Prints the detected /dev/ttyUSBx on
+# stdout so it can feed SERIAL_PORT.
+detect-console-port:
+	@bash "$(BIN_DIR)/detect-console-port.sh" \
+		--baud "$(SERIAL_BAUD)" \
+		--list-script "$(BIN_DIR)/list-serial-ports.sh" \
+		--long
 
 clean:
 	@echo "[clean] Removing $(BUILD_DIR)/tmp/"
