@@ -103,7 +103,9 @@ Other boards in the same BSP family build from the identical flow — just chang
 │   ├── local.conf.fragment        #   SD-card boot, debug-tweaks, create-spdx (SBOM)
 │   └── bblayers.conf.fragment     #   adds the meta-custom-apps + meta-custom-bsp layers
 ├── meta-custom-bsp/               # static, hand-maintained BSP layer (committed)
-│   └── recipes-kernel/linux/      #   linux-adi bbappend: LINUX_MEM -> DT /memory + mem=
+│   ├── recipes-kernel/linux/      #   linux-adi bbappend: LINUX_MEM -> DT /memory + mem=
+│   ├── recipes-bsp/u-boot/        #   u-boot-adi bbappend: LINUX_MEM -> CFG_SYS_SDRAM_*
+│   └── recipes-core/board-dns/    #   board-dns recipe: BOARD_DNS -> systemd-resolved drop-in
 ├── src/                           # workspace (almost entirely fetched/generated)
 │   └── apps/                      #   YOUR apps — the one hand-written tree under src/
 │       └── hello-world/           #   worked example (local-source, make build)
@@ -254,6 +256,7 @@ uses `?=`, so precedence is: **command line > environment > `config.mk`**.
 | `NFS_DIR` | *(empty)* | Host dir the rootfs is extracted into and exported over NFS (`make nfs-setup`). |
 | `BOARD_IP` / `HOST_IP` | *(empty / auto)* | Board's static IP and this host's IP. **Shared** by `make boot` (U-Boot `ipaddr` / `serverip`) and the NFS-root `bootargs` (`ip=` / `nfsroot=`). `HOST_IP` auto-detects if empty. |
 | `BOARD_NETMASK` / `BOARD_GATEWAY` / `BOARD_HOSTNAME` | `255.255.255.0` / *(empty)* / `sc598` | The remaining kernel `ip=` fields, shared by `make boot` and `make nfs-status`. |
+| `BOARD_DNS` | `1.1.1.1` | DNS resolver(s) baked into the **image** as a systemd-resolved `DNS=` drop-in (via the `meta-custom-bsp` `board-dns` recipe), space-separated. Replaces the `1.1.1.1` the board shows by default — which is *not* a BSP setting but systemd-resolved's compiled-in `FallbackDNS`. Empty → keep that fallback. |
 | `NFS_ALLOW` / `NFS_VERS` / `NFS_SUDO` | `HOST_IP/24` / `3` / `sudo` | NFS export client spec, mount version, and the privilege prefix for `make nfs-setup`. |
 | `SDK_VERSION` | `5.0.1` | ADI SDK version component of the install path (match your BSP release, cf. `REPO_MANIFEST_FILE`). |
 | `SDK_IMAGE` | `$(IMAGE)` | Image whose SDK `make sdk` builds (`bitbake … -c populate_sdk`). |

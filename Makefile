@@ -135,7 +135,8 @@ configure:
 		--crr-rev "$(CRR_REV)" \
 		--linux-mem "$(LINUX_MEM)" \
 		--ddr-size "$(DDR_SIZE)" \
-		--ddr-base "$(DDR_BASE)"
+		--ddr-base "$(DDR_BASE)" \
+		--board-dns "$(BOARD_DNS)"
 
 apps:
 	@python3 "$(BIN_DIR)/gen-apps.py" generate \

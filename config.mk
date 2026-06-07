@@ -368,6 +368,22 @@ BOARD_NETMASK  ?= 255.255.255.0
 BOARD_GATEWAY  ?=
 BOARD_HOSTNAME ?= sc598
 
+# ------- BOARD_DNS ----------------------------------------------------------
+# DNS server(s) the booted board uses, baked into the image as a systemd-resolved
+# drop-in (/etc/systemd/resolved.conf.d/10-board-dns.conf) by the meta-custom-bsp
+# `board-dns` recipe. Space-separate multiple servers.
+#
+# Why this knob exists: 1.1.1.1 is NOT set in any BSP layer. With no resolver
+# configured, systemd-resolved falls back to its COMPILED-IN FallbackDNS list
+# (Cloudflare 1.1.1.1 first) - that is the "1.1.1.1" the board shows out of the
+# box. Setting BOARD_DNS writes an explicit `DNS=` so the board uses your resolver
+# instead. Empty -> no drop-in (keep systemd's 1.1.1.1 fallback).
+#
+# Examples:
+#   BOARD_DNS ?= 192.168.2.1            # your router / local resolver
+#   BOARD_DNS ?= 192.168.2.1 1.1.1.1    # local primary + public fallback
+BOARD_DNS ?= 1.1.1.1
+
 # ------- NFS_ALLOW ----------------------------------------------------------
 # Client spec allowed to mount the export (the /etc/exports left-hand side).
 # Empty -> derived as the /24 of HOST_IP (e.g. 192.168.2.0/24). Narrow it to a

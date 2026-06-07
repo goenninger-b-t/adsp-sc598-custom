@@ -23,6 +23,7 @@ CRR_REV=""
 LINUX_MEM=""
 DDR_SIZE=""
 DDR_BASE=""
+BOARD_DNS=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -35,6 +36,7 @@ while [[ $# -gt 0 ]]; do
         --linux-mem)    LINUX_MEM="$2";    shift 2 ;;
         --ddr-size)     DDR_SIZE="$2";     shift 2 ;;
         --ddr-base)     DDR_BASE="$2";     shift 2 ;;
+        --board-dns)    BOARD_DNS="$2";    shift 2 ;;
         *) echo "configure-build.sh: unknown arg: $1" >&2; exit 1 ;;
     esac
 done
@@ -195,9 +197,33 @@ inject_linux_mem() {
     echo "[configure] Linux RAM -> mem=$LINUX_MEM  window=$base_hex+$size_hex  (SHARC+ gets ${sharc_mb} MB of ${DDR_SIZE:-512M})"
 }
 
+# Bake the board's resolver into the image: write BOARD_DNS into the managed
+# local.conf block and pull in the meta-custom-bsp `board-dns` recipe (which drops
+# an /etc/systemd/resolved.conf.d file setting systemd-resolved DNS=). Empty ->
+# nothing injected, so the board keeps systemd's compiled-in FallbackDNS (1.1.1.1).
+inject_board_dns() {
+    local target="$1"
+    [ -n "$BOARD_DNS" ] || return 0
+    local end="# === END custom-apps overlay ==="
+    local block=""
+    block+="# Board DNS (config.mk BOARD_DNS) -> systemd-resolved drop-in, via the"$'\n'
+    block+="# meta-custom-bsp board-dns recipe (pulled into the image just below)."$'\n'
+    block+="BOARD_DNS = \"$BOARD_DNS\""$'\n'
+    block+="IMAGE_INSTALL:append = \" board-dns\""$'\n'
+    local tmp; tmp="$(mktemp)"
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [ "$line" = "$end" ]; then printf '%s' "$block"; fi
+        printf '%s\n' "$line"
+    done < "$target" > "$tmp"
+    cat "$tmp" > "$target"
+    rm -f "$tmp"
+    echo "[configure] board DNS -> $BOARD_DNS  (+ board-dns into IMAGE_INSTALL)"
+}
+
 apply_overlay "$BUILD_DIR/conf/local.conf"    "$OVERLAYS_DIR/local.conf.fragment"
 inject_revisions "$BUILD_DIR/conf/local.conf"
 inject_linux_mem "$BUILD_DIR/conf/local.conf"
+inject_board_dns "$BUILD_DIR/conf/local.conf"
 apply_overlay "$BUILD_DIR/conf/bblayers.conf" "$OVERLAYS_DIR/bblayers.conf.fragment"
 
 echo "[configure] Done."
@@ -206,4 +232,5 @@ echo "[configure]   machine   : $MACHINE"
 echo "[configure]   distro    : $DISTRO"
 echo "[configure]   som/crr   : ${SOM_REV:-<BSP default>} / ${CRR_REV:-<BSP default>}"
 echo "[configure]   linux RAM : ${LINUX_MEM:-<BSP default>} (of ${DDR_SIZE:-512M} DDR)"
+echo "[configure]   board DNS : ${BOARD_DNS:-<systemd fallback 1.1.1.1>}"
 echo "[configure]   layer dir : $LAYER_DIR"
