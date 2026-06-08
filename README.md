@@ -103,9 +103,10 @@ Other boards in the same BSP family build from the identical flow — just chang
 │   ├── local.conf.fragment        #   SD-card boot, debug-tweaks, create-spdx (SBOM)
 │   └── bblayers.conf.fragment     #   adds the meta-custom-apps + meta-custom-bsp layers
 ├── meta-custom-bsp/               # static, hand-maintained BSP layer (committed)
-│   ├── recipes-kernel/linux/      #   linux-adi bbappend: LINUX_MEM -> DT /memory + mem=
+│   ├── recipes-kernel/linux/      #   linux-adi bbappend: LINUX_MEM (DT /memory + mem=) + LINUX_RT (PREEMPT_RT cfg)
 │   ├── recipes-bsp/u-boot/        #   u-boot-adi bbappend: LINUX_MEM -> CFG_SYS_SDRAM_*
-│   └── recipes-core/board-dns/    #   board-dns recipe: BOARD_DNS -> systemd-resolved drop-in
+│   ├── recipes-core/board-dns/    #   board-dns recipe: BOARD_DNS -> systemd-resolved drop-in
+│   └── recipes-adi/initramfs-init/ #  init-ramfs override: retry the NFS-root mount (RT timing)
 ├── src/                           # workspace (almost entirely fetched/generated)
 │   └── apps/                      #   YOUR apps — the one hand-written tree under src/
 │       └── hello-world/           #   worked example (local-source, make build)
