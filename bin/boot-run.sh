@@ -121,12 +121,15 @@ if [ -z "$PROPER_ELF" ]; then PROPER_ELF="$DEPLOY_DIR/u-boot-proper-$BOARD.elf";
 case "$METHOD" in nfs|ramdisk) ;; *) die "BOOT_METHOD='$METHOD' unsupported (use nfs|ramdisk)";; esac
 
 # fitImage must be staged where the TFTP server serves it.
-if [ -n "$TFTP_DIR" ] && [ ! -f "$TFTP_DIR/$FIT_NAME" ]; then
+if [ -n "$TFTP_DIR" ]; then
     if [ -n "$AUTO_STAGE" ]; then
-        log "auto-staging: $FIT_NAME -> $TFTP_DIR (make tftp)"
+        # ALWAYS (re)stage so a freshly rebuilt kernel is actually booted. A
+        # fitImage left in TFTP_DIR by an earlier build would otherwise be served
+        # as-is (stale) - e.g. you rebuild with LINUX_RT=1 but boot the old kernel.
+        log "auto-staging: $FIT_NAME -> $TFTP_DIR (refresh)"
         bash "$BIN_DIR/tftp-stage.sh" --tftp-dir "$TFTP_DIR" --deploy-dir "$DEPLOY_DIR" \
             --images-dir "$IMAGES_DIR" --machine "$MACHINE" >/dev/null
-    else
+    elif [ ! -f "$TFTP_DIR/$FIT_NAME" ]; then
         die "$FIT_NAME not staged in TFTP_DIR ($TFTP_DIR/$FIT_NAME). Run: make tftp  (or set BOOT_AUTO_STAGE=1)"
     fi
 fi
