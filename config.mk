@@ -253,6 +253,22 @@ DDR_SIZE    ?= 512M
 DDR_BASE    ?= 0x80000000
 
 
+# ------- LINUX_RT  (realtime PREEMPT_RT kernel) -----------------------------
+# Build the realtime (PREEMPT_RT) Linux kernel instead of the stock low-latency
+# (CONFIG_PREEMPT) one.  0 = normal kernel;  1 = realtime.
+#
+# PREEMPT_RT is mainlined as of Linux 6.12 (this BSP's kernel) and supported on
+# arm64, so this just flips the preemption model to CONFIG_PREEMPT_RT=y via a
+# kernel config fragment - no separate -rt patch or recipe. The meta-custom-bsp
+# linux-adi bbappend adds the fragment when LINUX_RT=1; changing this value
+# rebuilds the kernel (allow time for a full kernel recompile).
+#
+# Examples:
+#   LINUX_RT ?= 0    # stock kernel (CONFIG_PREEMPT, low-latency)
+#   LINUX_RT ?= 1    # realtime kernel (CONFIG_PREEMPT_RT)
+LINUX_RT    ?= 0
+
+
 # ----------------------------------------------------------------------------
 #  TFTP staging  (`make tftp`)
 # ----------------------------------------------------------------------------

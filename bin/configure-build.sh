@@ -24,6 +24,7 @@ LINUX_MEM=""
 DDR_SIZE=""
 DDR_BASE=""
 BOARD_DNS=""
+LINUX_RT=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -37,6 +38,7 @@ while [[ $# -gt 0 ]]; do
         --ddr-size)     DDR_SIZE="$2";     shift 2 ;;
         --ddr-base)     DDR_BASE="$2";     shift 2 ;;
         --board-dns)    BOARD_DNS="$2";    shift 2 ;;
+        --linux-rt)     LINUX_RT="$2";     shift 2 ;;
         *) echo "configure-build.sh: unknown arg: $1" >&2; exit 1 ;;
     esac
 done
@@ -220,10 +222,32 @@ inject_board_dns() {
     echo "[configure] board DNS -> $BOARD_DNS  (+ board-dns into IMAGE_INSTALL)"
 }
 
+# Realtime kernel toggle: write config.mk's LINUX_RT into the managed local.conf
+# block; the meta-custom-bsp linux-adi bbappend adds the PREEMPT_RT config
+# fragment when it is "1" (default "0" -> stock low-latency kernel).
+inject_linux_rt() {
+    local target="$1"
+    [ -n "$LINUX_RT" ] || return 0
+    local end="# === END custom-apps overlay ==="
+    local block=""
+    block+="# Realtime kernel toggle (config.mk LINUX_RT) -> meta-custom-bsp linux-adi"$'\n'
+    block+="# bbappend adds the PREEMPT_RT (CONFIG_PREEMPT_RT) config fragment when \"1\"."$'\n'
+    block+="LINUX_RT = \"$LINUX_RT\""$'\n'
+    local tmp; tmp="$(mktemp)"
+    while IFS= read -r line || [ -n "$line" ]; do
+        if [ "$line" = "$end" ]; then printf '%s' "$block"; fi
+        printf '%s\n' "$line"
+    done < "$target" > "$tmp"
+    cat "$tmp" > "$target"
+    rm -f "$tmp"
+    echo "[configure] realtime kernel -> LINUX_RT=$LINUX_RT$([ "$LINUX_RT" = "1" ] && echo ' (PREEMPT_RT)')"
+}
+
 apply_overlay "$BUILD_DIR/conf/local.conf"    "$OVERLAYS_DIR/local.conf.fragment"
 inject_revisions "$BUILD_DIR/conf/local.conf"
 inject_linux_mem "$BUILD_DIR/conf/local.conf"
 inject_board_dns "$BUILD_DIR/conf/local.conf"
+inject_linux_rt "$BUILD_DIR/conf/local.conf"
 apply_overlay "$BUILD_DIR/conf/bblayers.conf" "$OVERLAYS_DIR/bblayers.conf.fragment"
 
 echo "[configure] Done."
@@ -233,4 +257,5 @@ echo "[configure]   distro    : $DISTRO"
 echo "[configure]   som/crr   : ${SOM_REV:-<BSP default>} / ${CRR_REV:-<BSP default>}"
 echo "[configure]   linux RAM : ${LINUX_MEM:-<BSP default>} (of ${DDR_SIZE:-512M} DDR)"
 echo "[configure]   board DNS : ${BOARD_DNS:-<systemd fallback 1.1.1.1>}"
+echo "[configure]   realtime  : LINUX_RT=${LINUX_RT:-0}$([ "${LINUX_RT:-0}" = "1" ] && echo ' (PREEMPT_RT kernel)')"
 echo "[configure]   layer dir : $LAYER_DIR"

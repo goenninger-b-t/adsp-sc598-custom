@@ -53,7 +53,7 @@ help:
 	@echo "  make configure                   Configure build dir, enable SD-card boot"
 	@echo "  make apps                        Regenerate meta-custom-apps from src/apps/"
 	@echo "  make image [IMAGE=name]          bitbake the image and copy wic.gz to images/"
-	@echo "                                   Optional: LINUX_MEM=224M (RAM for Linux; SHARC+ gets the rest, see config.mk)"
+	@echo "                                   Optional: LINUX_MEM=224M (RAM for Linux; SHARC+ gets the rest), LINUX_RT=1 (PREEMPT_RT kernel)"
 	@echo "  make sbom                        (Re)generate the image's SPDX SBOM into images/"
 	@echo "  make sbom-collect                Copy the last build's SPDX SBOMs into images/ (helper; run by image/sbom)"
 	@echo "  make sdcard                      Decompress wic.gz to images/sdcard.img"
@@ -136,7 +136,8 @@ configure:
 		--linux-mem "$(LINUX_MEM)" \
 		--ddr-size "$(DDR_SIZE)" \
 		--ddr-base "$(DDR_BASE)" \
-		--board-dns "$(BOARD_DNS)"
+		--board-dns "$(BOARD_DNS)" \
+		--linux-rt "$(LINUX_RT)"
 
 apps:
 	@python3 "$(BIN_DIR)/gen-apps.py" generate \

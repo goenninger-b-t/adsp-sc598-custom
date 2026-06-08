@@ -42,3 +42,12 @@ do_configure:append:adsp-sc598-som-ezkit () {
 
 # Re-run do_configure (and thus rebuild the DTB) whenever the split changes.
 do_configure[vardeps] += "LINUX_MEM LINUX_MEM_BASE LINUX_MEM_SIZE LINUX_MEM_BASE_NODE"
+
+# Realtime kernel: add the PREEMPT_RT config fragment when LINUX_RT=1 (config.mk,
+# injected into local.conf by bin/configure-build.sh). PREEMPT_RT is mainlined in
+# Linux 6.12 and supported on arm64, so this flips the preemption model to
+# CONFIG_PREEMPT_RT=y - no -rt patch/recipe needed. Mirrors ADI's
+# CMA_PATCH -> enable_cma.cfg pattern; changing LINUX_RT rebuilds the kernel.
+LINUX_RT ?= "0"
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
+SRC_URI:append = "${@bb.utils.contains('LINUX_RT', '1', ' file://preempt-rt.cfg', '', d)}"
